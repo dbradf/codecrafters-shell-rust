@@ -13,13 +13,37 @@ impl CdCommand {
 impl BuiltinCommand for CdCommand {
     fn execute(&self, args: &[&str]) {
         let target_path = args[0];
-        if target_path.starts_with('/') {
-            let path = PathBuf::from(target_path);
-            if path.exists() {
-                std::env::set_current_dir(path).unwrap();
-            } else {
-                println!("cd: {}: No such file or directory", target_path);
-            }
+        let path = if target_path.starts_with(std::path::MAIN_SEPARATOR) {
+            PathBuf::from(target_path)
+        } else {
+            let directory_stack: Vec<&str> = target_path.split(std::path::MAIN_SEPARATOR).collect();
+            let cwd = std::env::current_dir().unwrap();
+            traverse_directories(&directory_stack, cwd)
+        };
+
+        if path.exists() {
+            std::env::set_current_dir(path).unwrap();
+        } else {
+            println!("cd: {}: No such file or directory", target_path);
         }
     }
+}
+
+fn traverse_directories(directory_stack: &[&str], cwd: PathBuf) -> PathBuf {
+    if let Some(next_dir) = directory_stack.first() {
+        match *next_dir {
+            "." => {
+                return traverse_directories(&directory_stack[1..], cwd);
+            }
+            ".." => {
+                return traverse_directories(
+                    &directory_stack[1..],
+                    cwd.parent().unwrap().to_path_buf(),
+                );
+            }
+            _ => return traverse_directories(&directory_stack[1..], cwd.join(*next_dir)),
+        }
+    }
+
+    cwd
 }
