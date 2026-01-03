@@ -25,8 +25,8 @@ fn repl() {
         let input = parse_command(&buffer);
         if let Some(command) = commands.get(*input.first().unwrap()) {
             command.execute(&input[1..]);
-        } else if let Some(_) = search_path(input.first().unwrap()) {
-            execute_command(&input.first().unwrap(), &input[1..]);
+        } else if search_path(input.first().unwrap()).is_some() {
+            execute_command(input.first().unwrap(), &input[1..]);
         } else {
             println!("{}: command not found", &input.first().unwrap());
             io::stdout().flush().unwrap();
