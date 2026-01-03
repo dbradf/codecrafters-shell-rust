@@ -9,7 +9,7 @@ impl ExitCommand {
 }
 
 impl BuiltinCommand for ExitCommand {
-    fn execute(&self, _: &[&str]) {
+    fn execute(&self, _: &[String]) {
         std::process::exit(0);
     }
 }

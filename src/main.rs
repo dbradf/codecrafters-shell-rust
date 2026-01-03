@@ -25,7 +25,7 @@ fn repl() {
         io::stdin().read_line(&mut buffer).unwrap();
 
         let input = parse_command(&buffer);
-        if let Some(command) = commands.get(*input.first().unwrap()) {
+        if let Some(command) = commands.get(input.first().unwrap()) {
             command.execute(&input[1..]);
         } else if search_path(input.first().unwrap()).is_some() {
             execute_command(input.first().unwrap(), &input[1..]);

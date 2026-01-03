@@ -11,7 +11,7 @@ impl EchoCommand {
 }
 
 impl BuiltinCommand for EchoCommand {
-    fn execute(&self, args: &[&str]) {
+    fn execute(&self, args: &[String]) {
         println!("{}", args.join(" "));
         io::stdout().flush().unwrap();
     }

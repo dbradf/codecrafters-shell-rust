@@ -13,9 +13,9 @@ impl TypeCommand {
 }
 
 impl BuiltinCommand for TypeCommand {
-    fn execute(&self, args: &[&str]) {
+    fn execute(&self, args: &[String]) {
         let command = args.first().unwrap();
-        if self.built_ins.contains(*command) {
+        if self.built_ins.contains(command) {
             println!("{} is a shell builtin", command);
         } else if let Some(path) = search_path(command) {
             println!(

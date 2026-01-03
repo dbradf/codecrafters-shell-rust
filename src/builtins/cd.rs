@@ -11,8 +11,8 @@ impl CdCommand {
 }
 
 impl BuiltinCommand for CdCommand {
-    fn execute(&self, args: &[&str]) {
-        let target_path = args[0];
+    fn execute(&self, args: &[String]) {
+        let target_path = &args[0];
         let path = if target_path.starts_with(std::path::MAIN_SEPARATOR) {
             PathBuf::from(target_path)
         } else {
