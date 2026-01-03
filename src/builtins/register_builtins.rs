@@ -1,12 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::builtins::{
-    builtin::BuiltinCommand, echo::EchoCommand, exit::ExitCommand, pwd::PwdCommand,
+    builtin::BuiltinCommand, cd::CdCommand, echo::EchoCommand, exit::ExitCommand, pwd::PwdCommand,
     type_cmd::TypeCommand,
 };
 
 pub fn register_builtin_commands() -> HashMap<String, Box<dyn BuiltinCommand>> {
     let mut commands: HashMap<String, Box<dyn BuiltinCommand>> = HashMap::new();
+    commands.insert(String::from("cd"), Box::new(CdCommand::new()));
     commands.insert(String::from("echo"), Box::new(EchoCommand::new()));
     commands.insert(String::from("exit"), Box::new(ExitCommand::new()));
     commands.insert(String::from("pwd"), Box::new(PwdCommand::new()));
