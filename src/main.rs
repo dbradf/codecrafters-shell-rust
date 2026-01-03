@@ -3,10 +3,12 @@ use std::io::{self, Write};
 use crate::{
     builtins::register_builtins::register_builtin_commands,
     exec::{execute_command::execute_command, search_path::search_path},
+    parse::parse_command,
 };
 
 mod builtins;
 mod exec;
+mod parse;
 
 fn main() {
     repl();
@@ -32,8 +34,4 @@ fn repl() {
             io::stdout().flush().unwrap();
         }
     }
-}
-
-fn parse_command(input: &str) -> Vec<&str> {
-    input.split_whitespace().collect()
 }
