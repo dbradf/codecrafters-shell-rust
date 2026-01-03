@@ -32,6 +32,10 @@ impl BuiltinCommand for CdCommand {
 fn traverse_directories(directory_stack: &[&str], cwd: PathBuf) -> PathBuf {
     if let Some(next_dir) = directory_stack.first() {
         match *next_dir {
+            "~" => {
+                let home = std::env::var("HOME").unwrap();
+                return traverse_directories(&directory_stack[1..], PathBuf::from(home));
+            }
             "." => {
                 return traverse_directories(&directory_stack[1..], cwd);
             }
