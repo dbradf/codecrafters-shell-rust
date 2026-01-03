@@ -3,6 +3,7 @@ use std::io::{self, Write};
 use crate::builtins::register_builtins::register_builtin_commands;
 
 mod builtins;
+mod exec;
 
 fn main() {
     repl();
