@@ -9,13 +9,23 @@ pub fn tokenize_input(input: &str) -> Vec<String> {
     let mut tokens = vec![];
     let mut current_token = String::new();
     let mut last_character = None;
+    let mut should_escape = false;
 
     let letters: Vec<char> = input.chars().collect();
     for i in 0..letters.len() {
         let ch = letters[i];
+        if should_escape {
+            current_token.push(ch);
+            should_escape = false;
+            continue;
+        }
+
         match state {
             State::Default => {
                 match ch {
+                    '\\' => {
+                        should_escape = true;
+                    }
                     '\'' => {
                         if let Some(next_ch) = letters.get(i + 1)
                             && *next_ch == '\''
@@ -138,6 +148,17 @@ mod tests {
     #[case("echo \"hello\"\"world\"", vec!["echo", "helloworld"])]
     #[case("echo \"shell's test\"", vec!["echo", "shell's test"])]
     fn test_double_quotes(#[case] input: &str, #[case] expected: Vec<&str>) {
+        let result = tokenize_input(input);
+        assert_eq!(result, expected);
+    }
+
+    #[rstest]
+    #[case("echo three\\ \\ \\ spaces", vec!["echo", "three   spaces"])]
+    #[case("echo before\\    after", vec!["echo", "before ", "after"])]
+    #[case("echo test\\nexample", vec!["echo", "testnexample"])]
+    #[case("echo hello\\\\world", vec!["echo", "hello\\world"])]
+    #[case("echo \\'hello\\'", vec!["echo", "'hello'"])]
+    fn test_backslash_escaping(#[case] input: &str, #[case] expected: Vec<&str>) {
         let result = tokenize_input(input);
         assert_eq!(result, expected);
     }
