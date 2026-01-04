@@ -3,7 +3,7 @@ enum State {
     Default,
 }
 
-pub fn parse_command(input: &str) -> Vec<String> {
+pub fn tokenize_input(input: &str) -> Vec<String> {
     let mut state = State::Default;
     let mut tokens = vec![];
     let mut current_token = String::new();
@@ -84,7 +84,7 @@ mod tests {
     #[case("echo hello''world", vec!["echo", "helloworld"])]
     #[case("echo 'hello''world'", vec!["echo", "helloworld"])]
     fn test_empty_single_quotes(#[case] input: &str, #[case] expected: Vec<&str>) {
-        let result = parse_command(input);
+        let result = tokenize_input(input);
         assert_eq!(result, expected);
     }
 }
