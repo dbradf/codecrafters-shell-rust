@@ -1,22 +1,31 @@
+#[derive(Debug)]
+pub struct TokenizedCommand {
+    pub command: String,
+    pub args: Vec<String>,
+    pub stdout: Option<String>,
+}
+
 enum State {
     Default,
     InDoubleQuotes,
     InSingleQuotes,
+    RedirectStdout,
 }
 
-pub fn tokenize_input(input: &str) -> Vec<String> {
+pub fn tokenize_input(input: &str) -> TokenizedCommand {
     let mut state = State::Default;
     let mut tokens = vec![];
     let mut current_token = String::new();
     let mut last_character = None;
     let mut should_escape = false;
+    let mut stdout = None;
 
     let letters: Vec<char> = input.chars().collect();
     for i in 0..letters.len() {
         let ch = letters[i];
 
         match state {
-            State::Default => {
+            State::Default | State::RedirectStdout => {
                 if should_escape {
                     current_token.push(ch);
                     should_escape = false;
@@ -63,7 +72,18 @@ pub fn tokenize_input(input: &str) -> Vec<String> {
                     }
                     ch if ch.is_whitespace() => {
                         if !current_token.is_empty() {
-                            tokens.push(current_token.clone());
+                            match state {
+                                State::RedirectStdout => {
+                                    stdout = Some(current_token.clone());
+                                }
+                                _ => {
+                                    if current_token == "1>" || current_token == ">" {
+                                        state = State::RedirectStdout;
+                                    } else {
+                                        tokens.push(current_token.clone());
+                                    }
+                                }
+                            }
                             current_token.clear();
                         }
                     }
@@ -138,10 +158,21 @@ pub fn tokenize_input(input: &str) -> Vec<String> {
     }
 
     if !current_token.is_empty() {
-        tokens.push(current_token);
+        match state {
+            State::RedirectStdout => {
+                stdout = Some(current_token);
+            }
+            _ => {
+                tokens.push(current_token);
+            }
+        }
     }
 
-    tokens
+    TokenizedCommand {
+        command: tokens.first().unwrap().clone(),
+        args: tokens[1..].to_vec(),
+        stdout,
+    }
 }
 
 #[cfg(test)]
@@ -151,42 +182,42 @@ mod tests {
     use super::*;
 
     #[rstest]
-    #[case("echo hello     world", vec!["echo", "hello", "world"])]
-    #[case("echo 'hello    world'", vec!["echo", "hello    world"])]
-    #[case("echo hello''world", vec!["echo", "helloworld"])]
-    #[case("echo 'hello''world'", vec!["echo", "helloworld"])]
+    #[case("echo hello     world", vec!["hello", "world"])]
+    #[case("echo 'hello    world'", vec!["hello    world"])]
+    #[case("echo hello''world", vec!["helloworld"])]
+    #[case("echo 'hello''world'", vec!["helloworld"])]
     fn test_single_quotes(#[case] input: &str, #[case] expected: Vec<&str>) {
-        let result = tokenize_input(input);
+        let result = tokenize_input(input).args;
         assert_eq!(result, expected);
     }
 
     #[rstest]
-    #[case("echo \"hello    world\"", vec!["echo", "hello    world"])]
-    #[case("echo \"hello\"\"world\"", vec!["echo", "helloworld"])]
-    #[case("echo \"shell's test\"", vec!["echo", "shell's test"])]
+    #[case("echo \"hello    world\"", vec!["hello    world"])]
+    #[case("echo \"hello\"\"world\"", vec!["helloworld"])]
+    #[case("echo \"shell's test\"", vec!["shell's test"])]
     fn test_double_quotes(#[case] input: &str, #[case] expected: Vec<&str>) {
-        let result = tokenize_input(input);
+        let result = tokenize_input(input).args;
         assert_eq!(result, expected);
     }
 
     #[rstest]
-    #[case("echo three\\ \\ \\ spaces", vec!["echo", "three   spaces"])]
-    #[case("echo before\\    after", vec!["echo", "before ", "after"])]
-    #[case("echo test\\nexample", vec!["echo", "testnexample"])]
-    #[case("echo hello\\\\world", vec!["echo", "hello\\world"])]
-    #[case("echo \\'hello\\'", vec!["echo", "'hello'"])]
+    #[case("echo three\\ \\ \\ spaces", vec!["three   spaces"])]
+    #[case("echo before\\    after", vec!["before ", "after"])]
+    #[case("echo test\\nexample", vec!["testnexample"])]
+    #[case("echo hello\\\\world", vec!["hello\\world"])]
+    #[case("echo \\'hello\\'", vec!["'hello'"])]
     fn test_backslash_escaping(#[case] input: &str, #[case] expected: Vec<&str>) {
-        let result = tokenize_input(input);
+        let result = tokenize_input(input).args;
         assert_eq!(result, expected);
     }
 
     #[rstest]
-    #[case("echo \"A \\\\ escapes itself\"", vec!["echo", "A \\ escapes itself"])]
-    #[case("echo \"A \\\" inside double quotes\"", vec!["echo", "A \" inside double quotes"])]
-    #[case("echo \"hello\\\"insidequotes\"script\\\"", vec!["echo", "hello\"insidequotesscript\""])]
-    #[case("cat \"/tmp/cow/'f  \\34'\"", vec!["cat", "/tmp/cow/'f  \\34'"])]
+    #[case("echo \"A \\\\ escapes itself\"", vec!["A \\ escapes itself"])]
+    #[case("echo \"A \\\" inside double quotes\"", vec!["A \" inside double quotes"])]
+    #[case("echo \"hello\\\"insidequotes\"script\\\"", vec!["hello\"insidequotesscript\""])]
+    #[case("cat \"/tmp/cow/'f  \\34'\"", vec!["/tmp/cow/'f  \\34'"])]
     fn test_double_quote_escapes(#[case] input: &str, #[case] expected: Vec<&str>) {
-        let result = tokenize_input(input);
+        let result = tokenize_input(input).args;
         assert_eq!(result, expected);
     }
 }

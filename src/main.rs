@@ -25,12 +25,12 @@ fn repl() {
         io::stdin().read_line(&mut buffer).unwrap();
 
         let input = tokenize_input(&buffer);
-        if let Some(command) = commands.get(input.first().unwrap()) {
-            command.execute(&input[1..]);
-        } else if search_path(input.first().unwrap()).is_some() {
-            execute_command(input.first().unwrap(), &input[1..]);
+        if let Some(command) = commands.get(&input.command) {
+            command.execute(&input);
+        } else if search_path(&input.command).is_some() {
+            execute_command(&input);
         } else {
-            println!("{}: command not found", &input.first().unwrap());
+            println!("{}: command not found", &input.command);
             io::stdout().flush().unwrap();
         }
     }

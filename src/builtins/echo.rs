@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use crate::builtins::builtin::BuiltinCommand;
+use crate::{builtins::builtin::BuiltinCommand, tokenize::TokenizedCommand};
 
 pub struct EchoCommand;
 
@@ -11,8 +11,8 @@ impl EchoCommand {
 }
 
 impl BuiltinCommand for EchoCommand {
-    fn execute(&self, args: &[String]) {
-        println!("{}", args.join(" "));
+    fn execute(&self, command: &TokenizedCommand) {
+        println!("{}", command.args.join(" "));
         io::stdout().flush().unwrap();
     }
 }

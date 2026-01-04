@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 
-use crate::{builtins::builtin::BuiltinCommand, exec::search_path::search_path};
+use crate::{
+    builtins::builtin::BuiltinCommand, exec::search_path::search_path, tokenize::TokenizedCommand,
+};
 
 pub struct TypeCommand {
     built_ins: HashSet<String>,
@@ -13,8 +15,8 @@ impl TypeCommand {
 }
 
 impl BuiltinCommand for TypeCommand {
-    fn execute(&self, args: &[String]) {
-        let command = args.first().unwrap();
+    fn execute(&self, command: &TokenizedCommand) {
+        let command = command.args.first().unwrap();
         if self.built_ins.contains(command) {
             println!("{} is a shell builtin", command);
         } else if let Some(path) = search_path(command) {

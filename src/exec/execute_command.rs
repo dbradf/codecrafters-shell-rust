@@ -1,5 +1,10 @@
 use std::process::Command;
 
-pub fn execute_command(command: &str, args: &[String]) {
-    Command::new(command).args(args).status().unwrap();
+use crate::tokenize::TokenizedCommand;
+
+pub fn execute_command(command: &TokenizedCommand) {
+    Command::new(&command.command)
+        .args(&command.args)
+        .status()
+        .unwrap();
 }
