@@ -6,9 +6,9 @@ pub struct TermCompleter {
 
 impl TermCompleter {
     pub fn new(commands: &[String]) -> Self {
-        Self {
-            commands: commands.to_vec(),
-        }
+        let mut commands = commands.to_vec();
+        commands.sort();
+        Self { commands }
     }
 }
 
