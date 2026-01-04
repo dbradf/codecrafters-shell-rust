@@ -14,14 +14,15 @@ pub fn tokenize_input(input: &str) -> Vec<String> {
     let letters: Vec<char> = input.chars().collect();
     for i in 0..letters.len() {
         let ch = letters[i];
-        if should_escape {
-            current_token.push(ch);
-            should_escape = false;
-            continue;
-        }
 
         match state {
             State::Default => {
+                if should_escape {
+                    current_token.push(ch);
+                    should_escape = false;
+                    continue;
+                }
+
                 match ch {
                     '\\' => {
                         should_escape = true;
@@ -95,26 +96,42 @@ pub fn tokenize_input(input: &str) -> Vec<String> {
                 }
             }
             State::InDoubleQuotes => {
-                if ch == '\"' {
-                    if let Some(next_ch) = letters.get(i + 1)
-                        && *next_ch == '\"'
-                    {
-                        // ignore "".
-                        last_character = Some('\"');
+                if should_escape {
+                    should_escape = false;
+                    match ch {
+                        '\"' | '\\' => {
+                            current_token.push(ch);
+                            continue;
+                        }
+                        _ => {
+                            current_token.push('\\');
+                        }
+                    }
+                }
+
+                match ch {
+                    '\\' => {
+                        should_escape = true;
                         continue;
                     }
-                    if last_character == Some('\"') {
-                        // ignore "".
-                        last_character = None;
-                        continue;
+                    '\"' => {
+                        if let Some(next_ch) = letters.get(i + 1)
+                            && *next_ch == '\"'
+                        {
+                            // ignore "".
+                            last_character = Some('\"');
+                            continue;
+                        }
+                        if last_character == Some('\"') {
+                            // ignore "".
+                            last_character = None;
+                            continue;
+                        }
+                        state = State::Default;
                     }
-                    if !current_token.is_empty() {
-                        tokens.push(current_token.clone());
-                        current_token.clear();
+                    _ => {
+                        current_token.push(ch);
                     }
-                    state = State::Default;
-                } else {
-                    current_token.push(ch);
                 }
             }
         }
@@ -159,6 +176,16 @@ mod tests {
     #[case("echo hello\\\\world", vec!["echo", "hello\\world"])]
     #[case("echo \\'hello\\'", vec!["echo", "'hello'"])]
     fn test_backslash_escaping(#[case] input: &str, #[case] expected: Vec<&str>) {
+        let result = tokenize_input(input);
+        assert_eq!(result, expected);
+    }
+
+    #[rstest]
+    #[case("echo \"A \\\\ escapes itself\"", vec!["echo", "A \\ escapes itself"])]
+    #[case("echo \"A \\\" inside double quotes\"", vec!["echo", "A \" inside double quotes"])]
+    #[case("echo \"hello\\\"insidequotes\"script\\\"", vec!["echo", "hello\"insidequotesscript\""])]
+    #[case("cat \"/tmp/cow/'f  \\34'\"", vec!["cat", "/tmp/cow/'f  \\34'"])]
+    fn test_double_quote_escapes(#[case] input: &str, #[case] expected: Vec<&str>) {
         let result = tokenize_input(input);
         assert_eq!(result, expected);
     }
