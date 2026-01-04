@@ -3,7 +3,9 @@ pub struct TokenizedCommand {
     pub command: String,
     pub args: Vec<String>,
     pub stdout: Option<String>,
+    pub append_stdout: bool,
     pub stderr: Option<String>,
+    pub append_stderr: bool,
 }
 
 enum State {
@@ -21,7 +23,9 @@ pub fn tokenize_input(input: &str) -> TokenizedCommand {
     let mut last_character = None;
     let mut should_escape = false;
     let mut stdout = None;
+    let mut append_stdout = false;
     let mut stderr = None;
+    let mut append_stderr = false;
 
     let letters: Vec<char> = input.chars().collect();
     for i in 0..letters.len() {
@@ -88,8 +92,16 @@ pub fn tokenize_input(input: &str) -> TokenizedCommand {
                                     "1>" | ">" => {
                                         state = State::RedirectStdout;
                                     }
+                                    "1>>" | ">>" => {
+                                        state = State::RedirectStdout;
+                                        append_stdout = true;
+                                    }
                                     "2>" => {
                                         state = State::RedirectStderr;
+                                    }
+                                    "2>>" => {
+                                        state = State::RedirectStderr;
+                                        append_stderr = true;
                                     }
                                     _ => {
                                         tokens.push(current_token.clone());
@@ -187,7 +199,9 @@ pub fn tokenize_input(input: &str) -> TokenizedCommand {
         command: tokens.first().unwrap().clone(),
         args: tokens[1..].to_vec(),
         stdout,
+        append_stdout,
         stderr,
+        append_stderr,
     }
 }
 

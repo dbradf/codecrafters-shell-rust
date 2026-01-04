@@ -15,7 +15,8 @@ pub fn execute_command(command: &TokenizedCommand) {
     if let Some(stdout) = &command.stdout {
         let mut file = OpenOptions::new()
             .create(true)
-            .truncate(true)
+            .truncate(!command.append_stdout)
+            .append(command.append_stdout)
             .write(true)
             .open(stdout)
             .unwrap();
@@ -27,7 +28,8 @@ pub fn execute_command(command: &TokenizedCommand) {
     if let Some(stderr) = &command.stderr {
         let mut file = OpenOptions::new()
             .create(true)
-            .truncate(true)
+            .truncate(!command.append_stderr)
+            .append(command.append_stderr)
             .write(true)
             .open(stderr)
             .unwrap();

@@ -9,11 +9,17 @@ pub struct CmdOutput {
 }
 
 impl CmdOutput {
-    pub fn new(stdout: &Option<String>, stderr: &Option<String>) -> Self {
+    pub fn new(
+        stdout: &Option<String>,
+        append_stdout: &bool,
+        stderr: &Option<String>,
+        append_stderr: &bool,
+    ) -> Self {
         let stdout_file = stdout.as_ref().map(|stdout| {
             OpenOptions::new()
                 .create(true)
-                .truncate(true)
+                .truncate(!*append_stdout)
+                .append(*append_stdout)
                 .write(true)
                 .open(stdout)
                 .unwrap()
@@ -21,7 +27,8 @@ impl CmdOutput {
         let stderr_file = stderr.as_ref().map(|stderr| {
             OpenOptions::new()
                 .create(true)
-                .truncate(true)
+                .truncate(!*append_stderr)
+                .append(*append_stderr)
                 .write(true)
                 .open(stderr)
                 .unwrap()

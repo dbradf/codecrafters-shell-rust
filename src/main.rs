@@ -27,7 +27,12 @@ fn repl() {
         io::stdin().read_line(&mut buffer).unwrap();
 
         let input = tokenize_input(&buffer);
-        let mut cmd_output = CmdOutput::new(&input.stdout, &input.stderr);
+        let mut cmd_output = CmdOutput::new(
+            &input.stdout,
+            &input.append_stdout,
+            &input.stderr,
+            &input.append_stderr,
+        );
         if let Some(command) = commands.get(&input.command) {
             command.execute(&input, &mut cmd_output);
         } else if search_path(&input.command).is_some() {
