@@ -1,4 +1,6 @@
-use crate::{builtins::builtin::BuiltinCommand, cmd_output::CmdOutput, tokenize::TokenizedCommand};
+use std::io::Write;
+
+use crate::{builtins::builtin::BuiltinCommand, tokenize::TokenizedCommand};
 
 pub struct PwdCommand;
 
@@ -9,10 +11,10 @@ impl PwdCommand {
 }
 
 impl BuiltinCommand for PwdCommand {
-    fn execute(&self, _: &TokenizedCommand, cmd_output: &mut CmdOutput) {
+    fn execute(&self, _: &TokenizedCommand, output: &mut dyn Write, _error: &mut dyn Write) {
         let current_dir = std::env::current_dir().unwrap();
         let canonicalized_path = current_dir.canonicalize().unwrap();
         let path = canonicalized_path.to_str().unwrap();
-        cmd_output.output(&format!("{}\n", path));
+        output.write_fmt(format_args!("{}\n", path));
     }
 }

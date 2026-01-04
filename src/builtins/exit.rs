@@ -1,4 +1,6 @@
-use crate::{builtins::builtin::BuiltinCommand, cmd_output::CmdOutput, tokenize::TokenizedCommand};
+use std::io::Write;
+
+use crate::{builtins::builtin::BuiltinCommand, tokenize::TokenizedCommand};
 
 pub struct ExitCommand;
 
@@ -9,7 +11,7 @@ impl ExitCommand {
 }
 
 impl BuiltinCommand for ExitCommand {
-    fn execute(&self, _: &TokenizedCommand, _: &mut CmdOutput) {
+    fn execute(&self, _: &TokenizedCommand, _output: &mut dyn Write, _error: &mut dyn Write) {
         std::process::exit(0);
     }
 }

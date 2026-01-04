@@ -1,6 +1,6 @@
-use std::path::PathBuf;
+use std::{io::Write, path::PathBuf};
 
-use crate::{builtins::builtin::BuiltinCommand, cmd_output::CmdOutput, tokenize::TokenizedCommand};
+use crate::{builtins::builtin::BuiltinCommand, tokenize::TokenizedCommand};
 
 pub struct CdCommand;
 
@@ -11,7 +11,7 @@ impl CdCommand {
 }
 
 impl BuiltinCommand for CdCommand {
-    fn execute(&self, command: &TokenizedCommand, cmd_output: &mut CmdOutput) {
+    fn execute(&self, command: &TokenizedCommand, _output: &mut dyn Write, error: &mut dyn Write) {
         let target_path = &command.args[0];
         let path = if target_path.starts_with(std::path::MAIN_SEPARATOR) {
             PathBuf::from(target_path)
@@ -24,7 +24,10 @@ impl BuiltinCommand for CdCommand {
         if path.exists() {
             std::env::set_current_dir(path).unwrap();
         } else {
-            cmd_output.error(&format!("cd: {}: No such file or directory\n", target_path));
+            error.write_fmt(format_args!(
+                "cd: {}: No such file or directory\n",
+                target_path
+            ));
         }
     }
 }

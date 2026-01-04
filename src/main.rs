@@ -43,7 +43,7 @@ fn repl() {
                     &input.append_stderr,
                 );
                 if let Some(command) = commands.get(&input.command) {
-                    command.execute(&input, &mut cmd_output);
+                    command.execute(&input, &mut cmd_output.stdout, &mut cmd_output.stderr);
                 } else if search_path(&input.command).is_some() {
                     execute_command(&input);
                 } else {

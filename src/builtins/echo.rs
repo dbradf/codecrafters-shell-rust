@@ -1,4 +1,6 @@
-use crate::{builtins::builtin::BuiltinCommand, cmd_output::CmdOutput, tokenize::TokenizedCommand};
+use std::io::Write;
+
+use crate::{builtins::builtin::BuiltinCommand, tokenize::TokenizedCommand};
 
 pub struct EchoCommand;
 
@@ -9,7 +11,7 @@ impl EchoCommand {
 }
 
 impl BuiltinCommand for EchoCommand {
-    fn execute(&self, command: &TokenizedCommand, cmd_output: &mut CmdOutput) {
-        cmd_output.output(&format!("{}\n", &command.args.join(" ")));
+    fn execute(&self, command: &TokenizedCommand, output: &mut dyn Write, _error: &mut dyn Write) {
+        output.write_fmt(format_args!("{}\n", &command.args.join(" ")));
     }
 }

@@ -1,11 +1,11 @@
 use std::{
-    fs::{File, OpenOptions},
+    fs::OpenOptions,
     io::{self, Write},
 };
 
 pub struct CmdOutput {
-    stdout: Option<File>,
-    stderr: Option<File>,
+    pub stdout: Box<dyn Write>,
+    pub stderr: Box<dyn Write>,
 }
 
 impl CmdOutput {
@@ -15,45 +15,36 @@ impl CmdOutput {
         stderr: &Option<String>,
         append_stderr: &bool,
     ) -> Self {
-        let stdout_file = stdout.as_ref().map(|stdout| {
-            OpenOptions::new()
-                .create(true)
-                .truncate(!*append_stdout)
-                .append(*append_stdout)
-                .write(true)
-                .open(stdout)
-                .unwrap()
-        });
-        let stderr_file = stderr.as_ref().map(|stderr| {
-            OpenOptions::new()
-                .create(true)
-                .truncate(!*append_stderr)
-                .append(*append_stderr)
-                .write(true)
-                .open(stderr)
-                .unwrap()
-        });
+        let stdout_writer: Box<dyn Write> = if let Some(stdout_file) = stdout {
+            Box::new(
+                OpenOptions::new()
+                    .create(true)
+                    .truncate(!*append_stdout)
+                    .append(*append_stdout)
+                    .write(true)
+                    .open(stdout_file)
+                    .unwrap(),
+            )
+        } else {
+            Box::new(io::stdout())
+        };
+        let stderr_writer: Box<dyn Write> = if let Some(stderr_file) = stderr {
+            Box::new(
+                OpenOptions::new()
+                    .create(true)
+                    .truncate(!*append_stderr)
+                    .append(*append_stderr)
+                    .write(true)
+                    .open(stderr_file)
+                    .unwrap(),
+            )
+        } else {
+            Box::new(io::stderr())
+        };
+
         Self {
-            stdout: stdout_file,
-            stderr: stderr_file,
-        }
-    }
-
-    pub fn output(&mut self, message: &str) {
-        if let Some(output) = &mut self.stdout {
-            let _ = output.write_all(message.as_bytes());
-        } else {
-            print!("{}", message);
-            io::stdout().flush().unwrap();
-        }
-    }
-
-    pub fn error(&mut self, message: &str) {
-        if let Some(stderr) = &mut self.stderr {
-            let _ = stderr.write_all(message.as_bytes());
-        } else {
-            print!("{}", message);
-            io::stdout().flush().unwrap();
+            stdout: stdout_writer,
+            stderr: stderr_writer,
         }
     }
 }
