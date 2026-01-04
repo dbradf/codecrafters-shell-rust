@@ -24,5 +24,15 @@ pub fn execute_command(command: &TokenizedCommand) {
         io::stdout().write_all(&output.stdout).unwrap();
     };
 
-    io::stdout().write_all(&output.stderr).unwrap();
+    if let Some(stderr) = &command.stderr {
+        let mut file = OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(stderr)
+            .unwrap();
+        file.write_all(&output.stderr).unwrap();
+    } else {
+        io::stdout().write_all(&output.stderr).unwrap();
+    };
 }

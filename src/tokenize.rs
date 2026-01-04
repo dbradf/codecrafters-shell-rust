@@ -3,6 +3,7 @@ pub struct TokenizedCommand {
     pub command: String,
     pub args: Vec<String>,
     pub stdout: Option<String>,
+    pub stderr: Option<String>,
 }
 
 enum State {
@@ -10,6 +11,7 @@ enum State {
     InDoubleQuotes,
     InSingleQuotes,
     RedirectStdout,
+    RedirectStderr,
 }
 
 pub fn tokenize_input(input: &str) -> TokenizedCommand {
@@ -19,13 +21,14 @@ pub fn tokenize_input(input: &str) -> TokenizedCommand {
     let mut last_character = None;
     let mut should_escape = false;
     let mut stdout = None;
+    let mut stderr = None;
 
     let letters: Vec<char> = input.chars().collect();
     for i in 0..letters.len() {
         let ch = letters[i];
 
         match state {
-            State::Default | State::RedirectStdout => {
+            State::Default | State::RedirectStdout | State::RedirectStderr => {
                 if should_escape {
                     current_token.push(ch);
                     should_escape = false;
@@ -75,14 +78,23 @@ pub fn tokenize_input(input: &str) -> TokenizedCommand {
                             match state {
                                 State::RedirectStdout => {
                                     stdout = Some(current_token.clone());
+                                    state = State::Default;
                                 }
-                                _ => {
-                                    if current_token == "1>" || current_token == ">" {
+                                State::RedirectStderr => {
+                                    stderr = Some(current_token.clone());
+                                    state = State::Default;
+                                }
+                                _ => match current_token.as_str() {
+                                    "1>" | ">" => {
                                         state = State::RedirectStdout;
-                                    } else {
+                                    }
+                                    "2>" => {
+                                        state = State::RedirectStderr;
+                                    }
+                                    _ => {
                                         tokens.push(current_token.clone());
                                     }
-                                }
+                                },
                             }
                             current_token.clear();
                         }
@@ -162,6 +174,9 @@ pub fn tokenize_input(input: &str) -> TokenizedCommand {
             State::RedirectStdout => {
                 stdout = Some(current_token);
             }
+            State::RedirectStderr => {
+                stderr = Some(current_token);
+            }
             _ => {
                 tokens.push(current_token);
             }
@@ -172,6 +187,7 @@ pub fn tokenize_input(input: &str) -> TokenizedCommand {
         command: tokens.first().unwrap().clone(),
         args: tokens[1..].to_vec(),
         stdout,
+        stderr,
     }
 }
 
