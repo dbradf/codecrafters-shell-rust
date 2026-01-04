@@ -1,9 +1,5 @@
-use std::io::{self, Write};
-
 use rustyline::{
-    Completer, Config, DefaultEditor, Editor, Helper, Highlighter, Hinter, Validator,
-    completion::FilenameCompleter,
-    history::{FileHistory, History, MemHistory},
+    Completer, Config, Editor, Helper, Highlighter, Hinter, Validator, history::FileHistory,
 };
 
 use crate::{
