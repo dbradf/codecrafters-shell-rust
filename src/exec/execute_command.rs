@@ -1,5 +1,5 @@
 use std::{
-    io::{Read, Write},
+    io::{BufRead, BufReader, Read, Write},
     process::{Child, Command, Stdio},
 };
 
@@ -21,29 +21,37 @@ pub fn execute_pipeline(
     final_stdout: &mut dyn Write,
     stderr: &mut dyn Write,
 ) {
-    let mut previous_output: Option<String> = None;
+    let mut prev_child: Option<Child> = None;
     for command in commands {
-        let mut child = Command::new(&command.command)
-            .args(&command.args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()
-            .unwrap();
-
-        if let Some(previous) = previous_output {
-            child
-                .stdin
+        let child = if let Some(prev_child) = prev_child {
+            Command::new(&command.command)
+                .args(&command.args)
+                .stdin(Stdio::from(prev_child.stdout.unwrap()))
+                .stdout(Stdio::piped())
+                .spawn()
                 .unwrap()
-                .write_all(previous.as_bytes())
-                .expect("error reading stdin");
-        }
+        } else {
+            Command::new(&command.command)
+                .args(&command.args)
+                .stdout(Stdio::piped())
+                .spawn()
+                .unwrap()
+        };
 
-        let mut buffer = String::new();
-        child.stdout.unwrap().read_to_string(&mut buffer);
-        previous_output = Some(buffer);
+        prev_child = Some(child);
     }
 
-    if let Some(output) = previous_output {
-        final_stdout.write_all(output.as_bytes());
+    if let Some(last_child) = prev_child {
+        let stdout = last_child.stdout.unwrap();
+        let stdout_reader = BufReader::new(stdout);
+
+        for line in stdout_reader.lines() {
+            match line {
+                Ok(line) => {
+                    final_stdout.write_all(line.as_bytes());
+                }
+                Err(_) => todo!(),
+            }
+        }
     }
 }
