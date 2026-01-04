@@ -8,7 +8,8 @@ use crate::{
     cmd_output::CmdOutput,
     completion::TermCompleter,
     exec::{
-        execute_command::execute_command, find_executables::find_executables_in_path,
+        execute_command::{execute_command, execute_pipeline},
+        find_executables::find_executables_in_path,
         search_path::search_path,
     },
     tokenize::{TokenizeResult, tokenize_input},
@@ -52,7 +53,20 @@ fn repl() {
                             println!("{}: command not found", &input.command);
                         }
                     }
-                    TokenizeResult::Pipeline(tokenized_commands) => todo!(),
+                    TokenizeResult::Pipeline(tokenized_commands) => {
+                        let last_command = tokenized_commands.last().unwrap();
+                        let mut cmd_output = CmdOutput::new(
+                            &last_command.stdout,
+                            &last_command.append_stdout,
+                            &last_command.stderr,
+                            &last_command.append_stderr,
+                        );
+                        execute_pipeline(
+                            &tokenized_commands,
+                            &mut cmd_output.stdout,
+                            &mut cmd_output.stderr,
+                        );
+                    }
                 }
             }
             Err(err) => {
