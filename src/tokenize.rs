@@ -75,6 +75,31 @@ impl State {
 
         false
     }
+
+    pub fn finalize(&mut self) -> TokenizedCommand {
+        if !self.current_token.is_empty() {
+            match self.tokenize_state {
+                TokenizeState::RedirectStdout => {
+                    self.stdout = Some(self.current_token.clone());
+                }
+                TokenizeState::RedirectStderr => {
+                    self.stderr = Some(self.current_token.clone());
+                }
+                _ => {
+                    self.tokens.push(self.current_token.clone());
+                }
+            }
+        }
+
+        TokenizedCommand {
+            command: self.tokens.first().unwrap().clone(),
+            args: self.tokens[1..].to_vec(),
+            stdout: self.stdout.clone(),
+            append_stdout: self.append_stdout,
+            stderr: self.stderr.clone(),
+            append_stderr: self.append_stderr,
+        }
+    }
 }
 
 pub fn tokenize_input(input: &str) -> TokenizeResult {
@@ -195,28 +220,7 @@ pub fn tokenize_input(input: &str) -> TokenizeResult {
         }
     }
 
-    if !state.current_token.is_empty() {
-        match state.tokenize_state {
-            TokenizeState::RedirectStdout => {
-                state.stdout = Some(state.current_token);
-            }
-            TokenizeState::RedirectStderr => {
-                state.stderr = Some(state.current_token);
-            }
-            _ => {
-                state.tokens.push(state.current_token);
-            }
-        }
-    }
-
-    TokenizeResult::SingleCommand(TokenizedCommand {
-        command: state.tokens.first().unwrap().clone(),
-        args: state.tokens[1..].to_vec(),
-        stdout: state.stdout,
-        append_stdout: state.append_stdout,
-        stderr: state.stderr,
-        append_stderr: state.append_stderr,
-    })
+    TokenizeResult::SingleCommand(state.finalize())
 }
 
 #[cfg(test)]
