@@ -1,5 +1,6 @@
 use rustyline::{
-    Completer, Config, Editor, Helper, Highlighter, Hinter, Validator, history::FileHistory,
+    Completer, CompletionType, Config, Editor, Helper, Highlighter, Hinter, Validator,
+    history::FileHistory,
 };
 
 use crate::{
@@ -71,7 +72,9 @@ impl TermHelper {
 }
 
 fn init_readline(commands: &[String]) -> Editor<TermHelper, FileHistory> {
-    let config = Config::builder().build();
+    let config = Config::builder()
+        .completion_type(CompletionType::List)
+        .build();
     let mut rl = Editor::with_config(config).unwrap();
     rl.set_helper(Some(TermHelper::new(commands)));
 
