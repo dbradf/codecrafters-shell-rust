@@ -11,7 +11,7 @@ use crate::{
         execute_command::execute_command, find_executables::find_executables_in_path,
         search_path::search_path,
     },
-    tokenize::tokenize_input,
+    tokenize::{TokenizeResult, tokenize_input},
 };
 
 mod builtins;
@@ -36,18 +36,22 @@ fn repl() {
         match readline {
             Ok(line) => {
                 let input = tokenize_input(&line);
-                let mut cmd_output = CmdOutput::new(
-                    &input.stdout,
-                    &input.append_stdout,
-                    &input.stderr,
-                    &input.append_stderr,
-                );
-                if let Some(command) = commands.get(&input.command) {
-                    command.execute(&input, &mut cmd_output.stdout, &mut cmd_output.stderr);
-                } else if search_path(&input.command).is_some() {
-                    execute_command(&input);
-                } else {
-                    println!("{}: command not found", &input.command);
+                match input {
+                    TokenizeResult::SingleCommand(input) => {
+                        let mut cmd_output = CmdOutput::new(
+                            &input.stdout,
+                            &input.append_stdout,
+                            &input.stderr,
+                            &input.append_stderr,
+                        );
+                        if let Some(command) = commands.get(&input.command) {
+                            command.execute(&input, &mut cmd_output.stdout, &mut cmd_output.stderr);
+                        } else if search_path(&input.command).is_some() {
+                            execute_command(&input);
+                        } else {
+                            println!("{}: command not found", &input.command);
+                        }
+                    }
                 }
             }
             Err(err) => {

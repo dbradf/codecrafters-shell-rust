@@ -8,6 +8,11 @@ pub struct TokenizedCommand {
     pub append_stderr: bool,
 }
 
+#[derive(Debug)]
+pub enum TokenizeResult {
+    SingleCommand(TokenizedCommand),
+}
+
 enum TokenizeState {
     Default,
     InDoubleQuotes,
@@ -72,7 +77,7 @@ impl State {
     }
 }
 
-pub fn tokenize_input(input: &str) -> TokenizedCommand {
+pub fn tokenize_input(input: &str) -> TokenizeResult {
     let mut state = State::new();
 
     let letters: Vec<char> = input.chars().collect();
@@ -204,14 +209,14 @@ pub fn tokenize_input(input: &str) -> TokenizedCommand {
         }
     }
 
-    TokenizedCommand {
+    TokenizeResult::SingleCommand(TokenizedCommand {
         command: state.tokens.first().unwrap().clone(),
         args: state.tokens[1..].to_vec(),
         stdout: state.stdout,
         append_stdout: state.append_stdout,
         stderr: state.stderr,
         append_stderr: state.append_stderr,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -226,8 +231,12 @@ mod tests {
     #[case("echo hello''world", vec!["helloworld"])]
     #[case("echo 'hello''world'", vec!["helloworld"])]
     fn test_single_quotes(#[case] input: &str, #[case] expected: Vec<&str>) {
-        let result = tokenize_input(input).args;
-        assert_eq!(result, expected);
+        let result = tokenize_input(input);
+        match result {
+            TokenizeResult::SingleCommand(command) => {
+                assert_eq!(command.args, expected);
+            }
+        }
     }
 
     #[rstest]
@@ -235,8 +244,12 @@ mod tests {
     #[case("echo \"hello\"\"world\"", vec!["helloworld"])]
     #[case("echo \"shell's test\"", vec!["shell's test"])]
     fn test_double_quotes(#[case] input: &str, #[case] expected: Vec<&str>) {
-        let result = tokenize_input(input).args;
-        assert_eq!(result, expected);
+        let result = tokenize_input(input);
+        match result {
+            TokenizeResult::SingleCommand(command) => {
+                assert_eq!(command.args, expected);
+            }
+        }
     }
 
     #[rstest]
@@ -246,8 +259,12 @@ mod tests {
     #[case("echo hello\\\\world", vec!["hello\\world"])]
     #[case("echo \\'hello\\'", vec!["'hello'"])]
     fn test_backslash_escaping(#[case] input: &str, #[case] expected: Vec<&str>) {
-        let result = tokenize_input(input).args;
-        assert_eq!(result, expected);
+        let result = tokenize_input(input);
+        match result {
+            TokenizeResult::SingleCommand(command) => {
+                assert_eq!(command.args, expected);
+            }
+        }
     }
 
     #[rstest]
@@ -256,7 +273,11 @@ mod tests {
     #[case("echo \"hello\\\"insidequotes\"script\\\"", vec!["hello\"insidequotesscript\""])]
     #[case("cat \"/tmp/cow/'f  \\34'\"", vec!["/tmp/cow/'f  \\34'"])]
     fn test_double_quote_escapes(#[case] input: &str, #[case] expected: Vec<&str>) {
-        let result = tokenize_input(input).args;
-        assert_eq!(result, expected);
+        let result = tokenize_input(input);
+        match result {
+            TokenizeResult::SingleCommand(command) => {
+                assert_eq!(command.args, expected);
+            }
+        }
     }
 }
