@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TokenizedCommand {
     pub command: String,
     pub args: Vec<String>,
@@ -11,6 +11,7 @@ pub struct TokenizedCommand {
 #[derive(Debug)]
 pub enum TokenizeResult {
     SingleCommand(TokenizedCommand),
+    Pipeline(Vec<TokenizedCommand>),
 }
 
 enum TokenizeState {
@@ -103,6 +104,7 @@ impl State {
 }
 
 pub fn tokenize_input(input: &str) -> TokenizeResult {
+    let mut commands: Vec<TokenizedCommand> = vec![];
     let mut state = State::new();
 
     let letters: Vec<char> = input.chars().collect();
@@ -120,6 +122,10 @@ pub fn tokenize_input(input: &str) -> TokenizeResult {
                 }
 
                 match ch {
+                    '|' => {
+                        commands.push(state.finalize());
+                        state = State::new();
+                    }
                     '\\' => {
                         state.should_escape = true;
                     }
@@ -220,7 +226,12 @@ pub fn tokenize_input(input: &str) -> TokenizeResult {
         }
     }
 
-    TokenizeResult::SingleCommand(state.finalize())
+    commands.push(state.finalize());
+    if commands.len() == 1 {
+        TokenizeResult::SingleCommand(commands[0].clone())
+    } else {
+        TokenizeResult::Pipeline(commands)
+    }
 }
 
 #[cfg(test)]
@@ -240,6 +251,7 @@ mod tests {
             TokenizeResult::SingleCommand(command) => {
                 assert_eq!(command.args, expected);
             }
+            _ => panic!("unexpect result {:?}", result),
         }
     }
 
@@ -253,6 +265,7 @@ mod tests {
             TokenizeResult::SingleCommand(command) => {
                 assert_eq!(command.args, expected);
             }
+            _ => panic!("unexpect result {:?}", result),
         }
     }
 
@@ -268,6 +281,7 @@ mod tests {
             TokenizeResult::SingleCommand(command) => {
                 assert_eq!(command.args, expected);
             }
+            _ => panic!("unexpect result {:?}", result),
         }
     }
 
@@ -282,6 +296,20 @@ mod tests {
             TokenizeResult::SingleCommand(command) => {
                 assert_eq!(command.args, expected);
             }
+            _ => panic!("unexpect result {:?}", result),
+        }
+    }
+
+    #[rstest]
+    fn test_pipelines() {
+        let result = tokenize_input("cat /tmp/foo/file | wc");
+        match result {
+            TokenizeResult::Pipeline(commands) => {
+                assert_eq!(commands.len(), 2);
+                assert_eq!(commands[0].command, "cat");
+                assert_eq!(commands[1].command, "wc");
+            }
+            _ => panic!("unexpect result {:?}", result),
         }
     }
 }

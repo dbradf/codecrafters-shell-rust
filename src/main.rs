@@ -52,6 +52,7 @@ fn repl() {
                             println!("{}: command not found", &input.command);
                         }
                     }
+                    TokenizeResult::Pipeline(tokenized_commands) => todo!(),
                 }
             }
             Err(err) => {
