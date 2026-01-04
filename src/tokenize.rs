@@ -15,45 +15,50 @@ pub fn tokenize_input(input: &str) -> Vec<String> {
         let ch = letters[i];
         match state {
             State::Default => {
-                if ch.is_whitespace() {
-                    if !current_token.is_empty() {
-                        tokens.push(current_token.clone());
-                        current_token.clear();
+                match ch {
+                    '\'' => {
+                        if let Some(next_ch) = letters.get(i + 1)
+                            && *next_ch == '\''
+                        {
+                            last_character = Some('\'');
+                            continue;
+                        }
+                        if last_character == Some('\'') {
+                            // ignore ''.
+                            continue;
+                        }
+                        if !current_token.is_empty() {
+                            tokens.push(current_token.clone());
+                            current_token.clear();
+                        }
+                        state = State::InSingleQuotes;
                     }
-                } else if ch == '\'' {
-                    if let Some(next_ch) = letters.get(i + 1)
-                        && *next_ch == '\''
-                    {
-                        last_character = Some('\'');
-                        continue;
+                    '\"' => {
+                        if let Some(next_ch) = letters.get(i + 1)
+                            && *next_ch == '\"'
+                        {
+                            last_character = Some('\"');
+                            continue;
+                        }
+                        if last_character == Some('\"') {
+                            // ignore "".
+                            continue;
+                        }
+                        if !current_token.is_empty() {
+                            tokens.push(current_token.clone());
+                            current_token.clear();
+                        }
+                        state = State::InDoubleQuotes;
                     }
-                    if last_character == Some('\'') {
-                        // ignore ''.
-                        continue;
+                    ch if ch.is_whitespace() => {
+                        if !current_token.is_empty() {
+                            tokens.push(current_token.clone());
+                            current_token.clear();
+                        }
                     }
-                    if !current_token.is_empty() {
-                        tokens.push(current_token.clone());
-                        current_token.clear();
+                    _ => {
+                        current_token.push(ch);
                     }
-                    state = State::InSingleQuotes;
-                } else if ch == '\"' {
-                    if let Some(next_ch) = letters.get(i + 1)
-                        && *next_ch == '\"'
-                    {
-                        last_character = Some('\"');
-                        continue;
-                    }
-                    if last_character == Some('\"') {
-                        // ignore "".
-                        continue;
-                    }
-                    if !current_token.is_empty() {
-                        tokens.push(current_token.clone());
-                        current_token.clear();
-                    }
-                    state = State::InDoubleQuotes;
-                } else {
-                    current_token.push(ch);
                 }
             }
             State::InSingleQuotes => {
