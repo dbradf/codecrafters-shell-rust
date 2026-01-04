@@ -1,14 +1,22 @@
 use std::io::{self, Write};
 
+use rustyline::{
+    Completer, Config, DefaultEditor, Editor, Helper, Highlighter, Hinter, Validator,
+    completion::FilenameCompleter,
+    history::{FileHistory, History, MemHistory},
+};
+
 use crate::{
     builtins::register_builtins::register_builtin_commands,
     cmd_output::CmdOutput,
+    completion::TermCompleter,
     exec::{execute_command::execute_command, search_path::search_path},
     tokenize::tokenize_input,
 };
 
 mod builtins;
 mod cmd_output;
+mod completion;
 mod exec;
 mod tokenize;
 
@@ -18,27 +26,53 @@ fn main() {
 
 fn repl() {
     let commands = register_builtin_commands();
+    let command_names: Vec<String> = commands.keys().map(|c| c.to_string()).collect();
+    let mut rl = init_readline(&command_names);
 
     loop {
-        print!("$ ");
-        io::stdout().flush().unwrap();
-
-        let mut buffer = String::new();
-        io::stdin().read_line(&mut buffer).unwrap();
-
-        let input = tokenize_input(&buffer);
-        let mut cmd_output = CmdOutput::new(
-            &input.stdout,
-            &input.append_stdout,
-            &input.stderr,
-            &input.append_stderr,
-        );
-        if let Some(command) = commands.get(&input.command) {
-            command.execute(&input, &mut cmd_output);
-        } else if search_path(&input.command).is_some() {
-            execute_command(&input);
-        } else {
-            println!("{}: command not found", &input.command);
+        let readline = rl.readline("$ ");
+        match readline {
+            Ok(line) => {
+                let input = tokenize_input(&line);
+                let mut cmd_output = CmdOutput::new(
+                    &input.stdout,
+                    &input.append_stdout,
+                    &input.stderr,
+                    &input.append_stderr,
+                );
+                if let Some(command) = commands.get(&input.command) {
+                    command.execute(&input, &mut cmd_output);
+                } else if search_path(&input.command).is_some() {
+                    execute_command(&input);
+                } else {
+                    println!("{}: command not found", &input.command);
+                }
+            }
+            Err(err) => {
+                dbg!(err);
+            }
         }
     }
+}
+
+#[derive(Completer, Helper, Hinter, Highlighter, Validator)]
+struct TermHelper {
+    #[rustyline(Completer)]
+    completer: TermCompleter,
+}
+
+impl TermHelper {
+    pub fn new(commands: &[String]) -> Self {
+        Self {
+            completer: TermCompleter::new(commands),
+        }
+    }
+}
+
+fn init_readline(commands: &[String]) -> Editor<TermHelper, FileHistory> {
+    let config = Config::builder().build();
+    let mut rl = Editor::with_config(config).unwrap();
+    rl.set_helper(Some(TermHelper::new(commands)));
+
+    rl
 }
