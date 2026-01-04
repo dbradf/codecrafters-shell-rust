@@ -49,6 +49,27 @@ impl State {
             self.current_token.clear();
         }
     }
+
+    pub fn handle_consecutive_quotes(
+        &mut self,
+        next_char: Option<&char>,
+        quote_type: char,
+    ) -> bool {
+        if let Some(next_ch) = next_char
+            && *next_ch == quote_type
+        {
+            self.last_char = Some(quote_type);
+            return true;
+        }
+
+        if self.last_char == Some(quote_type) {
+            // ignore ''.
+            self.last_char = None;
+            return true;
+        }
+
+        false
+    }
 }
 
 pub fn tokenize_input(input: &str) -> TokenizedCommand {
@@ -73,28 +94,14 @@ pub fn tokenize_input(input: &str) -> TokenizedCommand {
                         state.should_escape = true;
                     }
                     '\'' => {
-                        if let Some(next_ch) = letters.get(i + 1)
-                            && *next_ch == '\''
-                        {
-                            state.last_char = Some('\'');
-                            continue;
-                        }
-                        if state.last_char == Some('\'') {
-                            // ignore ''.
+                        if state.handle_consecutive_quotes(letters.get(i + 1), '\'') {
                             continue;
                         }
                         state.promote_current_token();
                         state.tokenize_state = TokenizeState::InSingleQuotes;
                     }
                     '\"' => {
-                        if let Some(next_ch) = letters.get(i + 1)
-                            && *next_ch == '\"'
-                        {
-                            state.last_char = Some('\"');
-                            continue;
-                        }
-                        if state.last_char == Some('\"') {
-                            // ignore "".
+                        if state.handle_consecutive_quotes(letters.get(i + 1), '\"') {
                             continue;
                         }
                         state.promote_current_token();
@@ -141,16 +148,7 @@ pub fn tokenize_input(input: &str) -> TokenizedCommand {
             }
             TokenizeState::InSingleQuotes => {
                 if ch == '\'' {
-                    if let Some(next_ch) = letters.get(i + 1)
-                        && *next_ch == '\''
-                    {
-                        // ignore ''.
-                        state.last_char = Some('\'');
-                        continue;
-                    }
-                    if state.last_char == Some('\'') {
-                        // ignore ''.
-                        state.last_char = None;
+                    if state.handle_consecutive_quotes(letters.get(i + 1), '\'') {
                         continue;
                     }
                     state.promote_current_token();
@@ -179,16 +177,7 @@ pub fn tokenize_input(input: &str) -> TokenizedCommand {
                         continue;
                     }
                     '\"' => {
-                        if let Some(next_ch) = letters.get(i + 1)
-                            && *next_ch == '\"'
-                        {
-                            // ignore "".
-                            state.last_char = Some('\"');
-                            continue;
-                        }
-                        if state.last_char == Some('\"') {
-                            // ignore "".
-                            state.last_char = None;
+                        if state.handle_consecutive_quotes(letters.get(i + 1), '\"') {
                             continue;
                         }
                         state.tokenize_state = TokenizeState::Default;
