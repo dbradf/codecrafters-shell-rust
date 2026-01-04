@@ -10,7 +10,10 @@ use crate::{
     builtins::register_builtins::register_builtin_commands,
     cmd_output::CmdOutput,
     completion::TermCompleter,
-    exec::{execute_command::execute_command, search_path::search_path},
+    exec::{
+        execute_command::execute_command, find_executables::find_executables_in_path,
+        search_path::search_path,
+    },
     tokenize::tokenize_input,
 };
 
@@ -26,7 +29,9 @@ fn main() {
 
 fn repl() {
     let commands = register_builtin_commands();
-    let command_names: Vec<String> = commands.keys().map(|c| c.to_string()).collect();
+    let external_commands = find_executables_in_path();
+    let mut command_names: Vec<String> = commands.keys().map(|c| c.to_string()).collect();
+    command_names.extend(external_commands);
     let mut rl = init_readline(&command_names);
 
     loop {
