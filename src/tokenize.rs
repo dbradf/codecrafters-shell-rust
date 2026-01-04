@@ -8,7 +8,7 @@ pub struct TokenizedCommand {
     pub append_stderr: bool,
 }
 
-enum State {
+enum TokenizeState {
     Default,
     InDoubleQuotes,
     InSingleQuotes,
@@ -16,146 +16,166 @@ enum State {
     RedirectStderr,
 }
 
+struct State {
+    tokenize_state: TokenizeState,
+    tokens: Vec<String>,
+    current_token: String,
+    last_char: Option<char>,
+    should_escape: bool,
+    stdout: Option<String>,
+    append_stdout: bool,
+    stderr: Option<String>,
+    append_stderr: bool,
+}
+
+impl State {
+    pub fn new() -> Self {
+        Self {
+            tokenize_state: TokenizeState::Default,
+            tokens: vec![],
+            current_token: String::new(),
+            last_char: None,
+            should_escape: false,
+            stdout: None,
+            append_stdout: false,
+            stderr: None,
+            append_stderr: false,
+        }
+    }
+
+    pub fn promote_current_token(&mut self) {
+        if !self.current_token.is_empty() {
+            self.tokens.push(self.current_token.clone());
+            self.current_token.clear();
+        }
+    }
+}
+
 pub fn tokenize_input(input: &str) -> TokenizedCommand {
-    let mut state = State::Default;
-    let mut tokens = vec![];
-    let mut current_token = String::new();
-    let mut last_character = None;
-    let mut should_escape = false;
-    let mut stdout = None;
-    let mut append_stdout = false;
-    let mut stderr = None;
-    let mut append_stderr = false;
+    let mut state = State::new();
 
     let letters: Vec<char> = input.chars().collect();
     for i in 0..letters.len() {
         let ch = letters[i];
 
-        match state {
-            State::Default | State::RedirectStdout | State::RedirectStderr => {
-                if should_escape {
-                    current_token.push(ch);
-                    should_escape = false;
+        match state.tokenize_state {
+            TokenizeState::Default
+            | TokenizeState::RedirectStdout
+            | TokenizeState::RedirectStderr => {
+                if state.should_escape {
+                    state.current_token.push(ch);
+                    state.should_escape = false;
                     continue;
                 }
 
                 match ch {
                     '\\' => {
-                        should_escape = true;
+                        state.should_escape = true;
                     }
                     '\'' => {
                         if let Some(next_ch) = letters.get(i + 1)
                             && *next_ch == '\''
                         {
-                            last_character = Some('\'');
+                            state.last_char = Some('\'');
                             continue;
                         }
-                        if last_character == Some('\'') {
+                        if state.last_char == Some('\'') {
                             // ignore ''.
                             continue;
                         }
-                        if !current_token.is_empty() {
-                            tokens.push(current_token.clone());
-                            current_token.clear();
-                        }
-                        state = State::InSingleQuotes;
+                        state.promote_current_token();
+                        state.tokenize_state = TokenizeState::InSingleQuotes;
                     }
                     '\"' => {
                         if let Some(next_ch) = letters.get(i + 1)
                             && *next_ch == '\"'
                         {
-                            last_character = Some('\"');
+                            state.last_char = Some('\"');
                             continue;
                         }
-                        if last_character == Some('\"') {
+                        if state.last_char == Some('\"') {
                             // ignore "".
                             continue;
                         }
-                        if !current_token.is_empty() {
-                            tokens.push(current_token.clone());
-                            current_token.clear();
-                        }
-                        state = State::InDoubleQuotes;
+                        state.promote_current_token();
+                        state.tokenize_state = TokenizeState::InDoubleQuotes;
                     }
                     ch if ch.is_whitespace() => {
-                        if !current_token.is_empty() {
-                            match state {
-                                State::RedirectStdout => {
-                                    stdout = Some(current_token.clone());
-                                    state = State::Default;
+                        if !state.current_token.is_empty() {
+                            match state.tokenize_state {
+                                TokenizeState::RedirectStdout => {
+                                    state.stdout = Some(state.current_token.clone());
+                                    state.tokenize_state = TokenizeState::Default;
                                 }
-                                State::RedirectStderr => {
-                                    stderr = Some(current_token.clone());
-                                    state = State::Default;
+                                TokenizeState::RedirectStderr => {
+                                    state.stderr = Some(state.current_token.clone());
+                                    state.tokenize_state = TokenizeState::Default;
                                 }
-                                _ => match current_token.as_str() {
+                                _ => match state.current_token.as_str() {
                                     "1>" | ">" => {
-                                        state = State::RedirectStdout;
+                                        state.tokenize_state = TokenizeState::RedirectStdout;
                                     }
                                     "1>>" | ">>" => {
-                                        state = State::RedirectStdout;
-                                        append_stdout = true;
+                                        state.tokenize_state = TokenizeState::RedirectStdout;
+                                        state.append_stdout = true;
                                     }
                                     "2>" => {
-                                        state = State::RedirectStderr;
+                                        state.tokenize_state = TokenizeState::RedirectStderr;
                                     }
                                     "2>>" => {
-                                        state = State::RedirectStderr;
-                                        append_stderr = true;
+                                        state.tokenize_state = TokenizeState::RedirectStderr;
+                                        state.append_stderr = true;
                                     }
                                     _ => {
-                                        tokens.push(current_token.clone());
+                                        state.tokens.push(state.current_token.clone());
                                     }
                                 },
                             }
-                            current_token.clear();
+                            state.current_token.clear();
                         }
                     }
                     _ => {
-                        current_token.push(ch);
+                        state.current_token.push(ch);
                     }
                 }
             }
-            State::InSingleQuotes => {
+            TokenizeState::InSingleQuotes => {
                 if ch == '\'' {
                     if let Some(next_ch) = letters.get(i + 1)
                         && *next_ch == '\''
                     {
                         // ignore ''.
-                        last_character = Some('\'');
+                        state.last_char = Some('\'');
                         continue;
                     }
-                    if last_character == Some('\'') {
+                    if state.last_char == Some('\'') {
                         // ignore ''.
-                        last_character = None;
+                        state.last_char = None;
                         continue;
                     }
-                    if !current_token.is_empty() {
-                        tokens.push(current_token.clone());
-                        current_token.clear();
-                    }
-                    state = State::Default;
+                    state.promote_current_token();
+                    state.tokenize_state = TokenizeState::Default;
                 } else {
-                    current_token.push(ch);
+                    state.current_token.push(ch);
                 }
             }
-            State::InDoubleQuotes => {
-                if should_escape {
-                    should_escape = false;
+            TokenizeState::InDoubleQuotes => {
+                if state.should_escape {
+                    state.should_escape = false;
                     match ch {
                         '\"' | '\\' => {
-                            current_token.push(ch);
+                            state.current_token.push(ch);
                             continue;
                         }
                         _ => {
-                            current_token.push('\\');
+                            state.current_token.push('\\');
                         }
                     }
                 }
 
                 match ch {
                     '\\' => {
-                        should_escape = true;
+                        state.should_escape = true;
                         continue;
                     }
                     '\"' => {
@@ -163,45 +183,45 @@ pub fn tokenize_input(input: &str) -> TokenizedCommand {
                             && *next_ch == '\"'
                         {
                             // ignore "".
-                            last_character = Some('\"');
+                            state.last_char = Some('\"');
                             continue;
                         }
-                        if last_character == Some('\"') {
+                        if state.last_char == Some('\"') {
                             // ignore "".
-                            last_character = None;
+                            state.last_char = None;
                             continue;
                         }
-                        state = State::Default;
+                        state.tokenize_state = TokenizeState::Default;
                     }
                     _ => {
-                        current_token.push(ch);
+                        state.current_token.push(ch);
                     }
                 }
             }
         }
     }
 
-    if !current_token.is_empty() {
-        match state {
-            State::RedirectStdout => {
-                stdout = Some(current_token);
+    if !state.current_token.is_empty() {
+        match state.tokenize_state {
+            TokenizeState::RedirectStdout => {
+                state.stdout = Some(state.current_token);
             }
-            State::RedirectStderr => {
-                stderr = Some(current_token);
+            TokenizeState::RedirectStderr => {
+                state.stderr = Some(state.current_token);
             }
             _ => {
-                tokens.push(current_token);
+                state.tokens.push(state.current_token);
             }
         }
     }
 
     TokenizedCommand {
-        command: tokens.first().unwrap().clone(),
-        args: tokens[1..].to_vec(),
-        stdout,
-        append_stdout,
-        stderr,
-        append_stderr,
+        command: state.tokens.first().unwrap().clone(),
+        args: state.tokens[1..].to_vec(),
+        stdout: state.stdout,
+        append_stdout: state.append_stdout,
+        stderr: state.stderr,
+        append_stderr: state.append_stderr,
     }
 }
 
