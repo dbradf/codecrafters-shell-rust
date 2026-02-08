@@ -4,7 +4,7 @@ use rustyline::{
 };
 
 use crate::{
-    builtins::register_builtins::register_builtin_commands,
+    builtins::{history::save_command, register_builtins::register_builtin_commands},
     cmd_output::CmdOutput,
     completion::TermCompleter,
     exec::{
@@ -36,6 +36,7 @@ fn repl() {
         let readline = rl.readline("$ ");
         match readline {
             Ok(line) => {
+                save_command(&line);
                 let input = tokenize_input(&line);
                 match input {
                     TokenizeResult::SingleCommand(input) => {
