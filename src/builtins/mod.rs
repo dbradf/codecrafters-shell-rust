@@ -4,5 +4,6 @@ pub mod register_builtins;
 mod cd;
 mod echo;
 mod exit;
+mod history;
 mod pwd;
 mod type_cmd;
