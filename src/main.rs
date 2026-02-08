@@ -4,7 +4,10 @@ use rustyline::{
 };
 
 use crate::{
-    builtins::{history::save_command, register_builtins::register_builtin_commands},
+    builtins::{
+        history::{reset_history, save_command},
+        register_builtins::register_builtin_commands,
+    },
     cmd_output::CmdOutput,
     completion::TermCompleter,
     exec::{
@@ -22,6 +25,7 @@ mod exec;
 mod tokenize;
 
 fn main() {
+    reset_history();
     repl();
 }
 

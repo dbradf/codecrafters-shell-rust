@@ -18,13 +18,28 @@ impl HistoryCommand {
 }
 
 impl BuiltinCommand for HistoryCommand {
-    fn execute(&self, _command: &TokenizedCommand, output: &mut dyn Write, _error: &mut dyn Write) {
+    fn execute(&self, command: &TokenizedCommand, output: &mut dyn Write, _error: &mut dyn Write) {
+        let limit: Option<usize> = if !command.args.is_empty() {
+            Some(command.args[0].parse().unwrap())
+        } else {
+            None
+        };
         let path = PathBuf::from(env::var("HOME").unwrap());
         let history = fs::read_to_string(path.join(HISTORY_FILE)).unwrap_or_default();
-        for (index, line) in history.lines().enumerate() {
-            output
-                .write_fmt(format_args!("    {}  {}\n", index, line))
-                .unwrap();
+        let history_lines: Vec<String> = history
+            .lines()
+            .enumerate()
+            .map(|(index, line)| format!("    {}  {}", index + 1, line))
+            .collect();
+
+        let start = if let Some(limit) = limit {
+            history_lines.len() - limit
+        } else {
+            0
+        };
+
+        for line in history_lines[start..].iter() {
+            output.write_fmt(format_args!("{}\n", line)).unwrap();
         }
     }
 }
@@ -38,4 +53,17 @@ pub fn save_command(command: &str) {
         .unwrap();
 
     file.write_all(format!("{}\n", command).as_bytes()).unwrap();
+}
+
+pub fn reset_history() {
+    let path = PathBuf::from(env::var("HOME").unwrap());
+    let history_path = path.join(HISTORY_FILE);
+    if history_path.exists() {
+        let mut file = OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(history_path)
+            .unwrap();
+    }
 }
