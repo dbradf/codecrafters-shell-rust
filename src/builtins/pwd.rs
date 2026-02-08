@@ -15,6 +15,6 @@ impl BuiltinCommand for PwdCommand {
         let current_dir = std::env::current_dir().unwrap();
         let canonicalized_path = current_dir.canonicalize().unwrap();
         let path = canonicalized_path.to_str().unwrap();
-        output.write_fmt(format_args!("{}\n", path));
+        let _ = output.write_fmt(format_args!("{}\n", path));
     }
 }

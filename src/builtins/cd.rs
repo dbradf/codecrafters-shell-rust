@@ -24,7 +24,7 @@ impl BuiltinCommand for CdCommand {
         if path.exists() {
             std::env::set_current_dir(path).unwrap();
         } else {
-            error.write_fmt(format_args!(
+            let _ = error.write_fmt(format_args!(
                 "cd: {}: No such file or directory\n",
                 target_path
             ));

@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader, Read, Write},
-    process::{Child, ChildStderr, ChildStdout, Command, Stdio},
+    process::{ChildStderr, ChildStdout, Command, Stdio},
 };
 
 use os_pipe::PipeReader;
@@ -36,8 +36,8 @@ pub fn execute_pipeline(
     let mut prev_child: Option<PrevOutput> = None;
     for command in commands {
         if let Some(builtin) = builtins.get(&command.command) {
-            let (mut output_reader, mut output_writer) = os_pipe::pipe().unwrap();
-            let (mut error_reader, mut error_writer) = os_pipe::pipe().unwrap();
+            let (output_reader, mut output_writer) = os_pipe::pipe().unwrap();
+            let (error_reader, mut error_writer) = os_pipe::pipe().unwrap();
             builtin.execute(command, &mut output_writer, &mut error_writer);
             prev_child = Some(PrevOutput {
                 stdout: ReaderSource::Pipe(output_reader),

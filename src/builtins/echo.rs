@@ -12,6 +12,6 @@ impl EchoCommand {
 
 impl BuiltinCommand for EchoCommand {
     fn execute(&self, command: &TokenizedCommand, output: &mut dyn Write, _error: &mut dyn Write) {
-        output.write_fmt(format_args!("{}\n", &command.args.join(" ")));
+        let _ = output.write_fmt(format_args!("{}\n", &command.args.join(" ")));
     }
 }

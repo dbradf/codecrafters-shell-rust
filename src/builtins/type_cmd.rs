@@ -18,15 +18,15 @@ impl BuiltinCommand for TypeCommand {
     fn execute(&self, command: &TokenizedCommand, output: &mut dyn Write, error: &mut dyn Write) {
         let command = command.args.first().unwrap();
         if self.built_ins.contains(command) {
-            output.write_fmt(format_args!("{} is a shell builtin\n", command));
+            let _ = output.write_fmt(format_args!("{} is a shell builtin\n", command));
         } else if let Some(path) = search_path(command) {
-            output.write_fmt(format_args!(
+            let _ = output.write_fmt(format_args!(
                 "{} is {}\n",
                 command,
                 path.canonicalize().unwrap().to_str().unwrap()
             ));
         } else {
-            error.write_fmt(format_args!("{}: not found\n", command));
+            let _ = error.write_fmt(format_args!("{}: not found\n", command));
         }
     }
 }
