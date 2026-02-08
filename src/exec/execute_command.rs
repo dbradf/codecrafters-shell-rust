@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader, Read, Write},
-    process::{ChildStderr, ChildStdout, Command, Stdio},
+    process::{ChildStderr, ChildStdout, Command, Stdio, exit},
 };
 
 use os_pipe::PipeReader;
@@ -43,15 +43,22 @@ pub fn execute_pipeline(
                 stdout: ReaderSource::Pipe(output_reader),
                 stderr: ReaderSource::Pipe(error_reader),
             });
+            continue;
         }
         let child = if let Some(prev_child) = prev_child {
-            Command::new(&command.command)
+            let res = Command::new(&command.command)
                 .args(&command.args)
                 .stdin(Stdio::from(prev_child.stdout))
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
-                .spawn()
-                .unwrap()
+                .spawn();
+            match res {
+                Ok(child) => child,
+                Err(err) => {
+                    eprintln!("Error: '{}': {:?}", command.command, err);
+                    exit(1);
+                }
+            }
         } else {
             Command::new(&command.command)
                 .args(&command.args)
