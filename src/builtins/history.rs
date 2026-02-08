@@ -28,8 +28,20 @@ impl BuiltinCommand for HistoryCommand {
 
             return;
         }
+
         let path = PathBuf::from(env::var("HOME").unwrap());
         let history = fs::read_to_string(path.join(HISTORY_FILE)).unwrap_or_default();
+        if let Some(write_file) = args.write {
+            let path = PathBuf::from(&write_file);
+            let mut file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)
+                .unwrap();
+
+            file.write_all(history.as_bytes()).unwrap();
+            return;
+        }
         let history_lines: Vec<String> = history
             .lines()
             .enumerate()
@@ -51,23 +63,29 @@ impl BuiltinCommand for HistoryCommand {
 struct HistoryArgs {
     limit: Option<usize>,
     read: Option<String>,
+    write: Option<String>,
 }
 
 enum ArgsState {
     Default,
     ReadHistory,
+    WriteHistory,
 }
 
 impl HistoryArgs {
     pub fn parse(args: &[String]) -> Self {
         let mut state = ArgsState::Default;
         let mut read_history = None;
+        let mut write_history = None;
         let mut limit = None;
         for arg in args {
             match state {
                 ArgsState::Default => match arg.as_str() {
                     "-r" => {
                         state = ArgsState::ReadHistory;
+                    }
+                    "-w" => {
+                        state = ArgsState::WriteHistory;
                     }
                     _ => {
                         if let Ok(value) = arg.parse() {
@@ -78,12 +96,16 @@ impl HistoryArgs {
                 ArgsState::ReadHistory => {
                     read_history = Some(arg.clone());
                 }
+                ArgsState::WriteHistory => {
+                    write_history = Some(arg.clone());
+                }
             }
         }
 
         Self {
             limit,
             read: read_history,
+            write: write_history,
         }
     }
 }
