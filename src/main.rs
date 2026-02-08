@@ -63,6 +63,7 @@ fn repl() {
                         );
                         execute_pipeline(
                             &tokenized_commands,
+                            &commands,
                             &mut cmd_output.stdout,
                             &mut cmd_output.stderr,
                         );
