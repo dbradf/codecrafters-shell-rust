@@ -3,7 +3,7 @@ use std::{
     env,
     fs::{self, OpenOptions},
     io::Write,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use crate::{builtins::builtin::BuiltinCommand, tokenize::TokenizedCommand};
@@ -27,17 +27,20 @@ impl HistoryCommand {
     pub fn save_command(&self, command: &str) {
         self.commands.borrow_mut().push(command.to_string());
     }
+
+    pub fn append_history_from_file(&self, file: &Path) {
+        let contents = fs::read_to_string(file).unwrap();
+        for line in contents.lines() {
+            self.save_command(line);
+        }
+    }
 }
 
 impl BuiltinCommand for HistoryCommand {
     fn execute(&self, command: &TokenizedCommand, output: &mut dyn Write, _error: &mut dyn Write) {
         let args = HistoryArgs::parse(&command.args);
         if let Some(read_file) = args.read {
-            let contents = fs::read_to_string(read_file).unwrap();
-            for line in contents.lines() {
-                self.save_command(line);
-            }
-
+            self.append_history_from_file(&PathBuf::from(read_file));
             return;
         }
 

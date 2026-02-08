@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{env, path::PathBuf, rc::Rc};
 
 use rustyline::{
     Completer, CompletionType, Config, Editor, Helper, Highlighter, Hinter, Validator,
@@ -33,6 +33,9 @@ fn main() {
 
 fn repl() {
     let history = Rc::new(HistoryCommand::new());
+    if let Ok(hist_file) = env::var("HISTFILE") {
+        history.append_history_from_file(&PathBuf::from(hist_file));
+    }
     let commands = register_builtin_commands(history.clone());
     let external_commands = find_executables_in_path();
     let mut command_names: Vec<String> = commands.keys().map(|c| c.to_string()).collect();
