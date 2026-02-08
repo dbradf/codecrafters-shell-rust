@@ -59,7 +59,7 @@ pub fn reset_history() {
     let path = PathBuf::from(env::var("HOME").unwrap());
     let history_path = path.join(HISTORY_FILE);
     if history_path.exists() {
-        let mut file = OpenOptions::new()
+        let _ = OpenOptions::new()
             .create(true)
             .truncate(true)
             .write(true)

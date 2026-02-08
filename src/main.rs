@@ -40,6 +40,7 @@ fn repl() {
         let readline = rl.readline("$ ");
         match readline {
             Ok(line) => {
+                rl.add_history_entry(&line).unwrap();
                 save_command(&line);
                 let input = tokenize_input(&line);
                 match input {
