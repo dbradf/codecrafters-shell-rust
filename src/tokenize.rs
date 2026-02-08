@@ -14,6 +14,7 @@ pub enum TokenizeResult {
     Pipeline(Vec<TokenizedCommand>),
 }
 
+#[derive(Debug, Clone)]
 enum TokenizeState {
     Default,
     InDoubleQuotes,
@@ -22,8 +23,10 @@ enum TokenizeState {
     RedirectStderr,
 }
 
+#[derive(Debug)]
 struct State {
     tokenize_state: TokenizeState,
+    previous_state: TokenizeState,
     tokens: Vec<String>,
     current_token: String,
     last_char: Option<char>,
@@ -38,6 +41,7 @@ impl State {
     pub fn new() -> Self {
         Self {
             tokenize_state: TokenizeState::Default,
+            previous_state: TokenizeState::Default,
             tokens: vec![],
             current_token: String::new(),
             last_char: None,
@@ -47,6 +51,16 @@ impl State {
             stderr: None,
             append_stderr: false,
         }
+    }
+
+    pub fn push_state(&mut self, token_state: TokenizeState) {
+        self.previous_state = self.tokenize_state.clone();
+        self.tokenize_state = token_state;
+    }
+
+    pub fn pop_state(&mut self) {
+        self.tokenize_state = self.previous_state.clone();
+        self.previous_state = TokenizeState::Default;
     }
 
     pub fn promote_current_token(&mut self) {
@@ -133,15 +147,13 @@ pub fn tokenize_input(input: &str) -> TokenizeResult {
                         if state.handle_consecutive_quotes(letters.get(i + 1), '\'') {
                             continue;
                         }
-                        state.promote_current_token();
-                        state.tokenize_state = TokenizeState::InSingleQuotes;
+                        state.push_state(TokenizeState::InSingleQuotes);
                     }
                     '\"' => {
                         if state.handle_consecutive_quotes(letters.get(i + 1), '\"') {
                             continue;
                         }
-                        state.promote_current_token();
-                        state.tokenize_state = TokenizeState::InDoubleQuotes;
+                        state.push_state(TokenizeState::InDoubleQuotes);
                     }
                     ch if ch.is_whitespace() => {
                         if !state.current_token.is_empty() {
@@ -188,7 +200,7 @@ pub fn tokenize_input(input: &str) -> TokenizeResult {
                         continue;
                     }
                     state.promote_current_token();
-                    state.tokenize_state = TokenizeState::Default;
+                    state.pop_state();
                 } else {
                     state.current_token.push(ch);
                 }
@@ -216,7 +228,7 @@ pub fn tokenize_input(input: &str) -> TokenizeResult {
                         if state.handle_consecutive_quotes(letters.get(i + 1), '\"') {
                             continue;
                         }
-                        state.tokenize_state = TokenizeState::Default;
+                        state.pop_state();
                     }
                     _ => {
                         state.current_token.push(ch);
@@ -290,11 +302,29 @@ mod tests {
     #[case("echo \"A \\\" inside double quotes\"", vec!["A \" inside double quotes"])]
     #[case("echo \"hello\\\"insidequotes\"script\\\"", vec!["hello\"insidequotesscript\""])]
     #[case("cat \"/tmp/cow/'f  \\34'\"", vec!["/tmp/cow/'f  \\34'"])]
+    #[case("cat /tmp/ant/\"number 26\"", vec!["/tmp/ant/number 26"])]
     fn test_double_quote_escapes(#[case] input: &str, #[case] expected: Vec<&str>) {
         let result = tokenize_input(input);
         match result {
             TokenizeResult::SingleCommand(command) => {
                 assert_eq!(command.args, expected);
+            }
+            _ => panic!("unexpect result {:?}", result),
+        }
+    }
+
+    #[rstest]
+    #[case("echo -n \"raspberry strawberry.\" > \"/tmp/ant/number 62\"", vec!["-n", "raspberry strawberry."], "/tmp/ant/number 62")]
+    fn test_redirection(
+        #[case] input: &str,
+        #[case] expected: Vec<&str>,
+        #[case] expected_stdout: &str,
+    ) {
+        let result = tokenize_input(input);
+        match result {
+            TokenizeResult::SingleCommand(command) => {
+                assert_eq!(command.args, expected);
+                assert_eq!(command.stdout, Some(expected_stdout.to_string()))
             }
             _ => panic!("unexpect result {:?}", result),
         }
