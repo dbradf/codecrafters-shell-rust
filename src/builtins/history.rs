@@ -34,6 +34,19 @@ impl HistoryCommand {
             self.save_command(line);
         }
     }
+
+    pub fn write_history_to_file(&self, file: &Path) {
+        let mut file = OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(file)
+            .unwrap();
+
+        self.commands.borrow().iter().for_each(|cmd| {
+            file.write_fmt(format_args!("{}\n", cmd)).unwrap();
+        });
+    }
 }
 
 impl BuiltinCommand for HistoryCommand {
@@ -47,16 +60,7 @@ impl BuiltinCommand for HistoryCommand {
         // let path = PathBuf::from(env::var("HOME").unwrap());
         // let history = fs::read_to_string(path.join(HISTORY_FILE)).unwrap_or_default();
         if let Some(write_file) = args.write {
-            let path = PathBuf::from(&write_file);
-            let mut file = OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(path)
-                .unwrap();
-
-            self.commands.borrow().iter().for_each(|cmd| {
-                file.write_fmt(format_args!("{}\n", cmd)).unwrap();
-            });
+            self.write_history_to_file(&PathBuf::from(write_file));
             return;
         }
 

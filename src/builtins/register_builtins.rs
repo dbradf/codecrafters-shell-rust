@@ -14,7 +14,10 @@ pub fn register_builtin_commands(
     let mut commands: HashMap<String, Rc<dyn BuiltinCommand>> = HashMap::new();
     commands.insert(String::from("cd"), Rc::new(CdCommand::new()));
     commands.insert(String::from("echo"), Rc::new(EchoCommand::new()));
-    commands.insert(String::from("exit"), Rc::new(ExitCommand::new()));
+    commands.insert(
+        String::from("exit"),
+        Rc::new(ExitCommand::new(history.clone())),
+    );
     commands.insert(String::from("history"), history);
     commands.insert(String::from("pwd"), Rc::new(PwdCommand::new()));
     let mut known_commands: HashSet<String> = commands.keys().map(|k| k.to_string()).collect();
