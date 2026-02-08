@@ -4,9 +4,9 @@ use is_executable::IsExecutable;
 
 pub fn find_executables_in_path() -> Vec<String> {
     if let Ok(paths_to_search) = env::var("PATH") {
-        return env::split_paths(&paths_to_search).flat_map(|dir| {
-            find_executables_in_dir(&dir)
-        }).collect()
+        return env::split_paths(&paths_to_search)
+            .flat_map(|dir| find_executables_in_dir(&dir))
+            .collect();
     }
 
     vec![]
