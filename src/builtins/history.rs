@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     env,
     fs::{self, OpenOptions},
     io::Write,
@@ -9,11 +10,22 @@ use crate::{builtins::builtin::BuiltinCommand, tokenize::TokenizedCommand};
 
 const HISTORY_FILE: &str = ".cc-sh-history";
 
-pub struct HistoryCommand;
+#[derive(Clone)]
+pub struct HistoryCommand {
+    commands: RefCell<Vec<String>>,
+}
 
 impl HistoryCommand {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            commands: RefCell::new(vec![]),
+        }
+    }
+}
+
+impl HistoryCommand {
+    pub fn save_command(&self, command: &str) {
+        self.commands.borrow_mut().push(command.to_string());
     }
 }
 
@@ -23,14 +35,14 @@ impl BuiltinCommand for HistoryCommand {
         if let Some(read_file) = args.read {
             let contents = fs::read_to_string(read_file).unwrap();
             for line in contents.lines() {
-                save_command(line);
+                self.save_command(line);
             }
 
             return;
         }
 
-        let path = PathBuf::from(env::var("HOME").unwrap());
-        let history = fs::read_to_string(path.join(HISTORY_FILE)).unwrap_or_default();
+        // let path = PathBuf::from(env::var("HOME").unwrap());
+        // let history = fs::read_to_string(path.join(HISTORY_FILE)).unwrap_or_default();
         if let Some(write_file) = args.write {
             let path = PathBuf::from(&write_file);
             let mut file = OpenOptions::new()
@@ -39,11 +51,32 @@ impl BuiltinCommand for HistoryCommand {
                 .open(path)
                 .unwrap();
 
-            file.write_all(history.as_bytes()).unwrap();
+            self.commands.borrow().iter().for_each(|cmd| {
+                file.write_fmt(format_args!("{}\n", cmd)).unwrap();
+            });
             return;
         }
-        let history_lines: Vec<String> = history
-            .lines()
+
+        if let Some(append_file) = args.append {
+            let path = PathBuf::from(&append_file);
+            let mut file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)
+                .unwrap();
+
+            self.commands.borrow().iter().for_each(|cmd| {
+                file.write_fmt(format_args!("{}\n", cmd)).unwrap();
+            });
+
+            self.commands.borrow_mut().clear();
+
+            return;
+        }
+        let history_lines: Vec<String> = self
+            .commands
+            .borrow()
+            .iter()
             .enumerate()
             .map(|(index, line)| format!("    {}  {}", index + 1, line))
             .collect();
@@ -64,12 +97,14 @@ struct HistoryArgs {
     limit: Option<usize>,
     read: Option<String>,
     write: Option<String>,
+    append: Option<String>,
 }
 
 enum ArgsState {
     Default,
     ReadHistory,
     WriteHistory,
+    AppendHistory,
 }
 
 impl HistoryArgs {
@@ -77,6 +112,7 @@ impl HistoryArgs {
         let mut state = ArgsState::Default;
         let mut read_history = None;
         let mut write_history = None;
+        let mut append_history = None;
         let mut limit = None;
         for arg in args {
             match state {
@@ -86,6 +122,9 @@ impl HistoryArgs {
                     }
                     "-w" => {
                         state = ArgsState::WriteHistory;
+                    }
+                    "-a" => {
+                        state = ArgsState::AppendHistory;
                     }
                     _ => {
                         if let Ok(value) = arg.parse() {
@@ -99,6 +138,9 @@ impl HistoryArgs {
                 ArgsState::WriteHistory => {
                     write_history = Some(arg.clone());
                 }
+                ArgsState::AppendHistory => {
+                    append_history = Some(arg.clone());
+                }
             }
         }
 
@@ -106,6 +148,7 @@ impl HistoryArgs {
             limit,
             read: read_history,
             write: write_history,
+            append: append_history,
         }
     }
 }

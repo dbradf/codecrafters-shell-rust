@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use rustyline::{
     Completer, CompletionType, Config, Editor, Helper, Highlighter, Hinter, Validator,
     history::FileHistory,
@@ -5,7 +7,7 @@ use rustyline::{
 
 use crate::{
     builtins::{
-        history::{reset_history, save_command},
+        history::{HistoryCommand, reset_history, save_command},
         register_builtins::register_builtin_commands,
     },
     cmd_output::CmdOutput,
@@ -30,7 +32,8 @@ fn main() {
 }
 
 fn repl() {
-    let commands = register_builtin_commands();
+    let history = Rc::new(HistoryCommand::new());
+    let commands = register_builtin_commands(history.clone());
     let external_commands = find_executables_in_path();
     let mut command_names: Vec<String> = commands.keys().map(|c| c.to_string()).collect();
     command_names.extend(external_commands);
@@ -41,7 +44,7 @@ fn repl() {
         match readline {
             Ok(line) => {
                 rl.add_history_entry(&line).unwrap();
-                save_command(&line);
+                history.save_command(&line);
                 let input = tokenize_input(&line);
                 match input {
                     TokenizeResult::SingleCommand(input) => {

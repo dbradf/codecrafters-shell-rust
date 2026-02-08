@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     io::{BufRead, BufReader, Read, Write},
     process::{ChildStderr, ChildStdout, Command, Stdio, exit},
+    rc::Rc,
 };
 
 use os_pipe::PipeReader;
@@ -28,7 +29,7 @@ struct PrevOutput {
 
 pub fn execute_pipeline(
     commands: &[TokenizedCommand],
-    builtins: &HashMap<String, Box<dyn BuiltinCommand>>,
+    builtins: &HashMap<String, Rc<dyn BuiltinCommand>>,
     final_stdout: &mut dyn Write,
     final_stderr: &mut dyn Write,
 ) {
