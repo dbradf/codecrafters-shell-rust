@@ -19,11 +19,15 @@ impl HistoryCommand {
 
 impl BuiltinCommand for HistoryCommand {
     fn execute(&self, command: &TokenizedCommand, output: &mut dyn Write, _error: &mut dyn Write) {
-        let limit: Option<usize> = if !command.args.is_empty() {
-            Some(command.args[0].parse().unwrap())
-        } else {
-            None
-        };
+        let args = HistoryArgs::parse(&command.args);
+        if let Some(read_file) = args.read {
+            let contents = fs::read_to_string(read_file).unwrap();
+            for line in contents.lines() {
+                save_command(line);
+            }
+
+            return;
+        }
         let path = PathBuf::from(env::var("HOME").unwrap());
         let history = fs::read_to_string(path.join(HISTORY_FILE)).unwrap_or_default();
         let history_lines: Vec<String> = history
@@ -32,7 +36,7 @@ impl BuiltinCommand for HistoryCommand {
             .map(|(index, line)| format!("    {}  {}", index + 1, line))
             .collect();
 
-        let start = if let Some(limit) = limit {
+        let start = if let Some(limit) = args.limit {
             history_lines.len() - limit
         } else {
             0
@@ -40,6 +44,46 @@ impl BuiltinCommand for HistoryCommand {
 
         for line in history_lines[start..].iter() {
             output.write_fmt(format_args!("{}\n", line)).unwrap();
+        }
+    }
+}
+
+struct HistoryArgs {
+    limit: Option<usize>,
+    read: Option<String>,
+}
+
+enum ArgsState {
+    Default,
+    ReadHistory,
+}
+
+impl HistoryArgs {
+    pub fn parse(args: &[String]) -> Self {
+        let mut state = ArgsState::Default;
+        let mut read_history = None;
+        let mut limit = None;
+        for arg in args {
+            match state {
+                ArgsState::Default => match arg.as_str() {
+                    "-r" => {
+                        state = ArgsState::ReadHistory;
+                    }
+                    _ => {
+                        if let Ok(value) = arg.parse() {
+                            limit = Some(value);
+                        }
+                    }
+                },
+                ArgsState::ReadHistory => {
+                    read_history = Some(arg.clone());
+                }
+            }
+        }
+
+        Self {
+            limit,
+            read: read_history,
         }
     }
 }
