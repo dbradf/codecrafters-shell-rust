@@ -2,6 +2,7 @@ pub mod builtin;
 pub mod register_builtins;
 
 mod cd;
+mod declare;
 mod echo;
 mod exit;
 pub mod history;

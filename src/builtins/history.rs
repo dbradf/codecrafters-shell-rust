@@ -29,7 +29,7 @@ impl HistoryCommand {
     }
 
     pub fn append_history_from_file(&self, file: &Path) {
-        let contents = fs::read_to_string(file).unwrap();
+        let contents = fs::read_to_string(file).unwrap_or_default();
         for line in contents.lines() {
             self.save_command(line);
         }
