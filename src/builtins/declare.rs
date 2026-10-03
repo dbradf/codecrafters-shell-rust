@@ -1,3 +1,4 @@
+use anyhow::Result;
 use std::{cell::RefCell, collections::HashMap, io::Write};
 
 use crate::{builtins::builtin::BuiltinCommand, tokenize::TokenizedCommand};
@@ -18,7 +19,16 @@ impl BuiltinCommand for DeclareCommand {
     fn execute(&self, command: &TokenizedCommand, output: &mut dyn Write, error: &mut dyn Write) {
         let args = parse(command);
         if let Some(value) = args.value {
-            self.variables.borrow_mut().insert(args.name, value);
+            if !is_name_valid(&args.name) {
+                output
+                    .write_fmt(format_args!(
+                        "declare: `{}={}': not a valid identifier\n",
+                        args.name, value
+                    ))
+                    .unwrap()
+            } else {
+                self.variables.borrow_mut().insert(args.name, value);
+            }
         } else if args.print_description {
             if let Some(value) = self.variables.borrow().get(&args.name) {
                 output
@@ -67,4 +77,19 @@ fn parse(command: &TokenizedCommand) -> DeclareArgs {
     }
 
     parsed
+}
+
+fn is_name_valid(name: &str) -> bool {
+    if name.len() <= 0 {
+        return false;
+    }
+
+    let first = name.chars().nth(0);
+    if !(first == Some('_') || first.unwrap_or_default().is_alphabetic()) {
+        return false;
+    }
+
+    name.chars()
+        .skip(1)
+        .all(|ch| ch.is_alphanumeric() || ch == '_')
 }
