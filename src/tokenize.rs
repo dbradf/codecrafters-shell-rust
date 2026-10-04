@@ -1,3 +1,5 @@
+use std::{collections::HashMap, rc::Rc, sync::Mutex};
+
 #[derive(Debug, Clone)]
 pub struct TokenizedCommand {
     pub command: String,
@@ -35,6 +37,7 @@ struct State {
     append_stdout: bool,
     stderr: Option<String>,
     append_stderr: bool,
+    variable: Option<String>,
 }
 
 impl State {
@@ -50,6 +53,7 @@ impl State {
             append_stdout: false,
             stderr: None,
             append_stderr: false,
+            variable: None,
         }
     }
 
@@ -117,13 +121,37 @@ impl State {
     }
 }
 
-pub fn tokenize_input(input: &str) -> TokenizeResult {
+pub fn tokenize_input(
+    input: &str,
+    symbol_table: Rc<Mutex<HashMap<String, String>>>,
+) -> TokenizeResult {
     let mut commands: Vec<TokenizedCommand> = vec![];
     let mut state = State::new();
 
     let letters: Vec<char> = input.chars().collect();
     for i in 0..letters.len() {
         let ch = letters[i];
+
+        // is this the end of a variable
+        if let Some(var) = &state.variable {
+            if ch.is_alphanumeric() || ch == '_' {
+                state.variable = Some(format!("{var}{ch}"));
+                continue;
+            }
+
+            let symbol_table = symbol_table.lock().unwrap();
+            if let Some(value) = symbol_table.get(&var[1..]) {
+                state.current_token.push_str(&value);
+            } else {
+                state.current_token.push_str(var);
+            }
+            state.variable = None;
+        }
+
+        if ch == '$' {
+            state.variable = Some("$".to_string());
+            continue;
+        }
 
         match state.tokenize_state {
             TokenizeState::Default
@@ -238,6 +266,16 @@ pub fn tokenize_input(input: &str) -> TokenizeResult {
         }
     }
 
+    if let Some(var) = &state.variable {
+        let symbol_table = symbol_table.lock().unwrap();
+        if let Some(value) = symbol_table.get(&var[1..]) {
+            state.current_token.push_str(&value);
+        } else {
+            state.current_token.push_str(var);
+        }
+        state.variable = None;
+    }
+
     commands.push(state.finalize());
     if commands.len() == 1 {
         TokenizeResult::SingleCommand(commands[0].clone())
@@ -258,7 +296,8 @@ mod tests {
     #[case("echo hello''world", vec!["helloworld"])]
     #[case("echo 'hello''world'", vec!["helloworld"])]
     fn test_single_quotes(#[case] input: &str, #[case] expected: Vec<&str>) {
-        let result = tokenize_input(input);
+        let vars = Rc::new(Mutex::new(HashMap::new()));
+        let result = tokenize_input(input, vars);
         match result {
             TokenizeResult::SingleCommand(command) => {
                 assert_eq!(command.args, expected);
@@ -272,7 +311,8 @@ mod tests {
     #[case("echo \"hello\"\"world\"", vec!["helloworld"])]
     #[case("echo \"shell's test\"", vec!["shell's test"])]
     fn test_double_quotes(#[case] input: &str, #[case] expected: Vec<&str>) {
-        let result = tokenize_input(input);
+        let vars = Rc::new(Mutex::new(HashMap::new()));
+        let result = tokenize_input(input, vars);
         match result {
             TokenizeResult::SingleCommand(command) => {
                 assert_eq!(command.args, expected);
@@ -288,7 +328,8 @@ mod tests {
     #[case("echo hello\\\\world", vec!["hello\\world"])]
     #[case("echo \\'hello\\'", vec!["'hello'"])]
     fn test_backslash_escaping(#[case] input: &str, #[case] expected: Vec<&str>) {
-        let result = tokenize_input(input);
+        let vars = Rc::new(Mutex::new(HashMap::new()));
+        let result = tokenize_input(input, vars);
         match result {
             TokenizeResult::SingleCommand(command) => {
                 assert_eq!(command.args, expected);
@@ -304,7 +345,8 @@ mod tests {
     #[case("cat \"/tmp/cow/'f  \\34'\"", vec!["/tmp/cow/'f  \\34'"])]
     #[case("cat /tmp/ant/\"number 26\"", vec!["/tmp/ant/number 26"])]
     fn test_double_quote_escapes(#[case] input: &str, #[case] expected: Vec<&str>) {
-        let result = tokenize_input(input);
+        let vars = Rc::new(Mutex::new(HashMap::new()));
+        let result = tokenize_input(input, vars);
         match result {
             TokenizeResult::SingleCommand(command) => {
                 assert_eq!(command.args, expected);
@@ -320,7 +362,8 @@ mod tests {
         #[case] expected: Vec<&str>,
         #[case] expected_stdout: &str,
     ) {
-        let result = tokenize_input(input);
+        let vars = Rc::new(Mutex::new(HashMap::new()));
+        let result = tokenize_input(input, vars);
         match result {
             TokenizeResult::SingleCommand(command) => {
                 assert_eq!(command.args, expected);
@@ -332,12 +375,30 @@ mod tests {
 
     #[rstest]
     fn test_pipelines() {
-        let result = tokenize_input("cat /tmp/foo/file | wc");
+        let vars = Rc::new(Mutex::new(HashMap::new()));
+        let result = tokenize_input("cat /tmp/foo/file | wc", vars);
         match result {
             TokenizeResult::Pipeline(commands) => {
                 assert_eq!(commands.len(), 2);
                 assert_eq!(commands[0].command, "cat");
                 assert_eq!(commands[1].command, "wc");
+            }
+            _ => panic!("unexpect result {:?}", result),
+        }
+    }
+
+    #[rstest]
+    fn test_variables() {
+        let vars = Rc::new(Mutex::new(HashMap::new()));
+        {
+            let mut vars = vars.lock().unwrap();
+            vars.insert("hello".to_string(), "world".to_string());
+        }
+        let result = tokenize_input("echo $hello", vars);
+        match result {
+            TokenizeResult::SingleCommand(command) => {
+                assert_eq!(command.command, "echo".to_string());
+                assert_eq!(command.args, vec!["world".to_string()]);
             }
             _ => panic!("unexpect result {:?}", result),
         }

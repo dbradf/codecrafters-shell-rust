@@ -1,4 +1,4 @@
-use std::{env, path::PathBuf, rc::Rc};
+use std::{collections::HashMap, env, path::PathBuf, rc::Rc, sync::Mutex};
 
 use rustyline::{
     Completer, CompletionType, Config, Editor, Helper, Highlighter, Hinter, Validator,
@@ -36,7 +36,8 @@ fn repl() {
     if let Ok(hist_file) = env::var("HISTFILE") {
         history.append_history_from_file(&PathBuf::from(hist_file));
     }
-    let commands = register_builtin_commands(history.clone());
+    let symbol_table = Rc::new(Mutex::new(HashMap::new()));
+    let commands = register_builtin_commands(history.clone(), symbol_table.clone());
     let external_commands = find_executables_in_path();
     let mut command_names: Vec<String> = commands.keys().map(|c| c.to_string()).collect();
     command_names.extend(external_commands);
@@ -48,7 +49,7 @@ fn repl() {
             Ok(line) => {
                 rl.add_history_entry(&line).unwrap();
                 history.save_command(&line);
-                let input = tokenize_input(&line);
+                let input = tokenize_input(&line, symbol_table.clone());
                 match input {
                     TokenizeResult::SingleCommand(input) => {
                         let mut cmd_output = CmdOutput::new(

@@ -1,16 +1,15 @@
-use anyhow::Result;
-use std::{cell::RefCell, collections::HashMap, io::Write};
+use std::{collections::HashMap, io::Write, rc::Rc, sync::Mutex};
 
 use crate::{builtins::builtin::BuiltinCommand, tokenize::TokenizedCommand};
 
 pub struct DeclareCommand {
-    variables: RefCell<HashMap<String, String>>,
+    variables: Rc<Mutex<HashMap<String, String>>>,
 }
 
 impl DeclareCommand {
-    pub fn new() -> Self {
+    pub fn new(symbol_table: Rc<Mutex<HashMap<String, String>>>) -> Self {
         Self {
-            variables: RefCell::new(HashMap::new()),
+            variables: symbol_table,
         }
     }
 }
@@ -27,10 +26,12 @@ impl BuiltinCommand for DeclareCommand {
                     ))
                     .unwrap()
             } else {
-                self.variables.borrow_mut().insert(args.name, value);
+                let mut variables = self.variables.lock().unwrap();
+                variables.insert(args.name, value);
             }
         } else if args.print_description {
-            if let Some(value) = self.variables.borrow().get(&args.name) {
+            let variables = self.variables.lock().unwrap();
+            if let Some(value) = variables.get(&args.name) {
                 output
                     .write_fmt(format_args!("declare -- {}=\"{}\"\n", args.name, value))
                     .unwrap();

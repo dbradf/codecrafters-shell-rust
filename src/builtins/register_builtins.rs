@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     rc::Rc,
+    sync::Mutex,
 };
 
 use crate::builtins::{
@@ -10,10 +11,14 @@ use crate::builtins::{
 
 pub fn register_builtin_commands(
     history: Rc<HistoryCommand>,
+    symbol_table: Rc<Mutex<HashMap<String, String>>>,
 ) -> HashMap<String, Rc<dyn BuiltinCommand>> {
     let mut commands: HashMap<String, Rc<dyn BuiltinCommand>> = HashMap::new();
     commands.insert(String::from("cd"), Rc::new(CdCommand::new()));
-    commands.insert(String::from("declare"), Rc::new(DeclareCommand::new()));
+    commands.insert(
+        String::from("declare"),
+        Rc::new(DeclareCommand::new(symbol_table)),
+    );
     commands.insert(String::from("echo"), Rc::new(EchoCommand::new()));
     commands.insert(
         String::from("exit"),
